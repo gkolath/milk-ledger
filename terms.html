@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Milk Ledger Terms of Service</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Shared look for the Milk Ledger public pages: same palette and type as the app. */
+:root {
+  --bg: #f3f6fa;
+  --surface: #ffffff;
+  --ink: #17233d;
+  --muted: #5d6b85;
+  --line: #dbe2ec;
+  --accent: #2357d6;
+  --accent-soft: #e4ecfd;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1522; --surface: #172033; --ink: #e8edf6; --muted: #98a5bd; --line: #2a3650;
+    --accent: #7aa2ff; --accent-soft: #1f2d4f;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.6;
+}
+a { color: var(--accent); }
+a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.wrap {
+  max-width: 680px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 28px;
+}
+.brand {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-decoration: none;
+}
+.top nav { display: flex; gap: 16px; font-size: 0.92rem; }
+
+h1, h2 { font-family: var(--font-display); letter-spacing: -0.02em; text-wrap: balance; }
+h1 { font-weight: 800; font-size: 2rem; line-height: 1.15; margin: 0 0 8px; }
+h2 { font-weight: 600; font-size: 1.25rem; margin: 32px 0 8px; }
+p, ul { margin: 0 0 14px; max-width: 65ch; }
+ul { padding-left: 1.2em; }
+li { margin-bottom: 6px; }
+.meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 24px; }
+
+.lede { font-size: 1.15rem; color: var(--muted); }
+.features {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 12px;
+  margin: 24px 0;
+  max-width: none;
+}
+.features li {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin: 0;
+}
+.features b { display: block; font-family: var(--font-display); font-size: 1.05rem; }
+.rate { font-variant-numeric: tabular-nums; }
+
+.note {
+  background: var(--accent-soft);
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+footer {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.88rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="./">Milk Ledger</a>
+    <nav><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></nav>
+  </header>
+
+  <main>
+    <h1>Terms of service</h1>
+    <p class="meta">Effective 6 November 2026</p>
+
+    <p>These terms apply when you use the Milk Ledger Android app ("Milk Ledger", "we", "us"). By signing in, you agree to them.</p>
+
+    <h2>What the app does</h2>
+    <p>Milk Ledger is a free tool for recording daily milk deliveries, working out the monthly bill at the rates shown in the app (₹70 a day for 1 litre, ₹35 a day for ½ litre), and opening your UPI app to pay the milkman.</p>
+
+    <h2>Your records are your responsibility</h2>
+    <p>The bill is calculated only from the days you mark. Check your entries before you pay. If your records and the milkman's differ, settle it directly with the milkman. Milk Ledger is not a party to your arrangement with them.</p>
+
+    <h2>Payments</h2>
+    <p>Payments are made in your own UPI app, between you and the milkman. Milk Ledger does not process, hold or refund money, and cannot reverse a payment. For a problem with a payment, contact your UPI app or bank. "Mark as paid" is a note for your own records and is not proof of payment.</p>
+
+    <h2>Your account</h2>
+    <ul>
+      <li>You sign in with your Google account and are responsible for keeping it secure.</li>
+      <li>Use the app only for your own household's records.</li>
+      <li>Don't try to access other users' data, overload the service, or interfere with how it works.</li>
+    </ul>
+    <p>You can delete your account at any time from <b>Settings → Delete my account</b>. We may suspend accounts that break these terms.</p>
+
+    <h2>Availability</h2>
+    <p>We aim to keep Milk Ledger running but don't guarantee it will always be available or free of errors. We may change or stop the service, and will give notice in the app where we can.</p>
+
+    <h2>Limitation of liability</h2>
+    <p>The app is provided "as is". To the extent the law allows, we are not liable for losses from using it, including wrong totals caused by incorrect entries, payments sent to the wrong person, or loss of data.</p>
+
+    <h2>Governing law</h2>
+    <p>These terms are governed by the laws of India.</p>
+
+    <h2>Changes</h2>
+    <p>We may update these terms. We will change the date at the top and, for significant changes, show a notice in the app. Continuing to use the app means you accept the updated terms.</p>
+
+    <h2>Contact</h2>
+    <p><a href="mailto:hello@truship.org">hello@truship.org</a></p>
+  </main>
+
+  <footer>
+    <span>© 2026 Milk Ledger</span>
+    <a href="./">Home</a>
+    <a href="privacy.html">Privacy policy</a>
+  </footer>
+</div>
+</body>
+</html>

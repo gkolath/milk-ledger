@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Milk Ledger Privacy Policy</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Shared look for the Milk Ledger public pages: same palette and type as the app. */
+:root {
+  --bg: #f3f6fa;
+  --surface: #ffffff;
+  --ink: #17233d;
+  --muted: #5d6b85;
+  --line: #dbe2ec;
+  --accent: #2357d6;
+  --accent-soft: #e4ecfd;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1522; --surface: #172033; --ink: #e8edf6; --muted: #98a5bd; --line: #2a3650;
+    --accent: #7aa2ff; --accent-soft: #1f2d4f;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.6;
+}
+a { color: var(--accent); }
+a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.wrap {
+  max-width: 680px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 28px;
+}
+.brand {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-decoration: none;
+}
+.top nav { display: flex; gap: 16px; font-size: 0.92rem; }
+
+h1, h2 { font-family: var(--font-display); letter-spacing: -0.02em; text-wrap: balance; }
+h1 { font-weight: 800; font-size: 2rem; line-height: 1.15; margin: 0 0 8px; }
+h2 { font-weight: 600; font-size: 1.25rem; margin: 32px 0 8px; }
+p, ul { margin: 0 0 14px; max-width: 65ch; }
+ul { padding-left: 1.2em; }
+li { margin-bottom: 6px; }
+.meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 24px; }
+
+.lede { font-size: 1.15rem; color: var(--muted); }
+.features {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 12px;
+  margin: 24px 0;
+  max-width: none;
+}
+.features li {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin: 0;
+}
+.features b { display: block; font-family: var(--font-display); font-size: 1.05rem; }
+.rate { font-variant-numeric: tabular-nums; }
+
+.note {
+  background: var(--accent-soft);
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+footer {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.88rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="./">Milk Ledger</a>
+    <nav><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></nav>
+  </header>
+
+  <main>
+    <h1>Privacy policy</h1>
+    <p class="meta">Effective 6 November 2026</p>
+
+    <p>This policy explains what the Milk Ledger Android app ("Milk Ledger", "we", "us") collects, why, and what you can do about it. Milk Ledger helps a household record daily milk deliveries, see the monthly bill and pay the milkman by UPI.</p>
+
+    <h2>What we collect</h2>
+    <ul>
+      <li><b>Your Google account details:</b> your name, email address and profile picture, plus an account ID, when you sign in with Google. We use these only to sign you in and keep your records separate from other households.</li>
+      <li><b>Your delivery records:</b> the dates you mark, whether milk was received or not, and whether it was 1 litre or ½ litre.</li>
+      <li><b>Your payment records:</b> when you tap "Mark as paid", the month, the amount and the method (UPI, cash or other) that you choose.</li>
+    </ul>
+    <p>We do not collect your location, contacts, photos, phone number or device identifiers. The app has no ads and no third-party analytics or tracking.</p>
+
+    <h2>UPI payments</h2>
+    <p>When you tap "Pay with UPI", Milk Ledger opens the UPI app you choose on your phone, such as Google Pay or PhonePe, with the milkman's UPI ID and the amount filled in. You complete the payment in that app. Milk Ledger never sees or stores your bank account, card, UPI PIN or transaction details. Those are handled by your UPI app and bank under their own privacy policies.</p>
+
+    <h2>How we use your data</h2>
+    <ul>
+      <li>To show your calendar, bill and payment history on any phone where you sign in.</li>
+      <li>To keep your records private to your household.</li>
+    </ul>
+    <p>We do not sell your data, share it with advertisers, or use it to train AI models.</p>
+
+    <h2>Where your data is stored</h2>
+    <p>Your account and records are stored with Supabase, our database provider, on servers in Singapore. Data is encrypted in transit (HTTPS) and at rest. Each household's records are locked to its own account at the database level, so no other user can read them.</p>
+
+    <h2>Who can see your data</h2>
+    <ul>
+      <li>You, when signed in.</li>
+      <li>Supabase, only as needed to run the service.</li>
+      <li>The app's developer, only to fix a problem you report or when the law requires it.</li>
+    </ul>
+
+    <h2>How long we keep it</h2>
+    <p>We keep your records while your account exists. When you delete your account, your account and all its delivery and payment records are permanently deleted straight away. Backups held by Supabase are cleared within their normal backup cycle.</p>
+
+    <h2>Deleting your account and data</h2>
+    <p>In the app, go to <b>Settings → Delete my account</b>. This removes your account and every record linked to it. If you can no longer open the app, email <a href="mailto:hello@truship.org">hello@truship.org</a> from the email address you signed in with, and we will delete it within 30 days.</p>
+
+    <h2>Children</h2>
+    <p>Milk Ledger is meant for adults managing a household. It is not directed at children under 13, and we do not knowingly collect data from them.</p>
+
+    <h2>Changes to this policy</h2>
+    <p>If we change this policy, we will update the date at the top of this page and, for significant changes, show a notice in the app.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about privacy: <a href="mailto:hello@truship.org">hello@truship.org</a></p>
+  </main>
+
+  <footer>
+    <span>© 2026 Milk Ledger</span>
+    <a href="./">Home</a>
+    <a href="terms.html">Terms of service</a>
+  </footer>
+</div>
+</body>
+</html>
