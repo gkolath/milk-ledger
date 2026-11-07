@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Milk Ledger</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+
+<div id="screen-loading" class="screen center">
+  <p class="muted">Loading…</p>
+</div>
+
+<div id="screen-signin" class="screen signin" hidden>
+  <div class="signin-inner">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 48 48" width="56" height="56"><path d="M18 4h12v6l5 8v24a2 2 0 0 1-2 2H15a2 2 0 0 1-2-2V18l5-8z" fill="var(--accent)"/><path d="M13 26h22v10H13z" fill="var(--surface)" opacity=".9"/></svg>
+    </div>
+    <h1>Milk Ledger</h1>
+    <p class="lede">Tap the days your milk arrives. The month's bill adds itself up, and you pay the milkman by UPI.</p>
+    <button class="btn google" id="googleBtn">
+      <svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.6 13.2l7.8 6.1C12.3 13.6 17.6 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.4 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6.1C.9 16.5 0 20.1 0 24s.9 7.5 2.6 10.8l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.4 0-11.7-4.1-13.6-9.8l-7.8 6.1C6.6 42.6 14.6 48 24 48z"/></svg>
+      Sign in with Google
+    </button>
+    <p class="error" id="signinError" role="alert" hidden></p>
+    <p class="fine">By signing in you agree to the <a href="#" data-link="terms">terms of service</a> and <a href="#" data-link="privacy">privacy policy</a>.</p>
+  </div>
+</div>
+
+<div id="screen-main" class="screen" hidden>
+  <main class="app">
+    <header class="top">
+      <h1>Milk Ledger</h1>
+      <button class="icon-btn" id="openSettings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.5 7.5 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.5 7.5 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.5 7.5 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
+      </button>
+    </header>
+
+    <div class="setup" id="setupCard" hidden>
+      <p><b>Add your milk seller</b>Set their UPI ID and your rates so you can pay from the app.</p>
+      <button class="btn primary" id="setupBtn">Open settings</button>
+    </div>
+
+    <div class="month-nav">
+      <button class="nav-btn" id="prevMonth" aria-label="Previous month">‹</button>
+      <h2 id="monthLabel"></h2>
+      <button class="nav-btn" id="nextMonth" aria-label="Next month">›</button>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Milk quantity">
+      <button class="tab" role="tab" id="tab-one" data-kind="one" aria-selected="true" aria-controls="panel">
+        <strong>1 litre</strong><span id="rateOne"></span>
+      </button>
+      <button class="tab" role="tab" id="tab-half" data-kind="half" aria-selected="false" aria-controls="panel">
+        <strong>½ litre</strong><span id="rateHalf"></span>
+      </button>
+    </div>
+
+    <section class="panel" id="panel" role="tabpanel" aria-labelledby="tab-one">
+      <p class="hint">Tap a day once for <b>received</b>, again for <b>not received</b>, and a third time to clear it.</p>
+      <div class="weekdays" aria-hidden="true">
+        <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+      </div>
+      <div class="grid" id="grid"></div>
+      <div class="legend">
+        <span><i class="sw yes"></i>Received</span>
+        <span><i class="sw no"></i>Not received</span>
+        <span><i class="sw"></i>Not marked</span>
+      </div>
+      <dl class="counts">
+        <div class="c-yes"><dt>Received</dt><dd id="cntYes">0</dd></div>
+        <div class="c-no"><dt>Not received</dt><dd id="cntNo">0</dd></div>
+        <div><dt>Not marked</dt><dd id="cntBlank">0</dd></div>
+      </dl>
+      <div class="actions">
+        <button class="btn" id="fillBtn">Mark unmarked days as received</button>
+        <button class="btn" id="clearBtn">Clear this month</button>
+      </div>
+    </section>
+
+    <section class="pay" id="payCard" aria-labelledby="payTitle">
+      <div class="pay-head">
+        <h3 id="payTitle">Pay for <span id="payMonth"></span></h3>
+        <span class="pill" id="payPill"></span>
+      </div>
+      <p class="muted" id="payLine"></p>
+      <div class="actions" id="payActions">
+        <button class="btn primary" id="upiBtn"></button>
+        <button class="btn" id="markPaidBtn">Mark as paid</button>
+        <button class="btn" id="shareBtn">Share bill</button>
+      </div>
+      <div class="actions" id="paidChoice" hidden>
+        <span class="muted">How did you pay <b id="paidChoiceAmt"></b>?</span>
+        <button class="btn" data-method="upi">By UPI</button>
+        <button class="btn" data-method="cash">In cash</button>
+        <button class="btn ghost" id="paidCancel">Cancel</button>
+      </div>
+      <ul class="history" id="history"></ul>
+    </section>
+  </main>
+
+  <footer class="bill" aria-label="Monthly bill">
+    <div class="bill-inner">
+      <div class="bill-row"><span class="lbl"><b>1 litre</b> · <span id="billOneDays"></span></span><span id="billOne"></span></div>
+      <div class="bill-row"><span class="lbl"><b>½ litre</b> · <span id="billHalfDays"></span></span><span id="billHalf"></span></div>
+      <div class="bill-row bill-total"><span class="lbl">Total for <span id="billMonth"></span> · <span id="billLitres"></span></span><span class="amt" id="billTotal"></span></div>
+    </div>
+  </footer>
+</div>
+
+<div id="screen-settings" class="sheet" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" hidden>
+  <div class="sheet-inner">
+    <header class="top">
+      <h1 id="settingsTitle">Settings</h1>
+      <button class="icon-btn" id="closeSettings" aria-label="Close settings">✕</button>
+    </header>
+
+    <form id="settingsForm" novalidate>
+      <h2>Milk seller</h2>
+      <label class="field" for="sellerName">Name
+        <input id="sellerName" maxlength="60" autocomplete="off" placeholder="e.g. Raju">
+      </label>
+      <label class="field" for="upiId">UPI ID
+        <input id="upiId" inputmode="email" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="e.g. raju@okaxis">
+        <span class="help">Ask the milkman for it, or scan their QR code in your UPI app and copy the ID shown.</span>
+      </label>
+
+      <h2>Rates per day</h2>
+      <div class="rate-row">
+        <label class="field" for="rateOneInput">1 litre (₹)
+          <input id="rateOneInput" type="number" inputmode="numeric" min="1" max="10000" step="1">
+        </label>
+        <label class="field" for="rateHalfInput">½ litre (₹)
+          <input id="rateHalfInput" type="number" inputmode="numeric" min="1" max="10000" step="1">
+        </label>
+      </div>
+      <label class="check" for="repriceMonth">
+        <input type="checkbox" id="repriceMonth" checked>
+        <span>Also update the days already marked in <b id="repriceMonthName"></b></span>
+      </label>
+      <p class="error" id="settingsError" role="alert" hidden></p>
+      <button class="btn primary wide" type="submit" id="saveSettings">Save</button>
+    </form>
+
+    <h2>Account</h2>
+    <p class="muted">Signed in as <b id="accountEmail"></b></p>
+    <div class="actions">
+      <button class="btn" id="signOutBtn">Sign out</button>
+      <button class="btn danger" id="deleteBtn">Delete my account</button>
+    </div>
+    <p class="muted small" id="deleteNote" hidden>This permanently deletes your account and every day and payment you have recorded. Tap again to confirm.</p>
+
+    <h2>About</h2>
+    <p class="muted small">
+      <a href="#" data-link="privacy">Privacy policy</a> · <a href="#" data-link="terms">Terms of service</a><br>
+      Help: <span class="select" id="supportEmail"></span>
+    </p>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

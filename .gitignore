@@ -1,0 +1,15 @@
+# Local toolchain (Node, Java 21, GitHub CLI) — downloaded per machine, see README
+tools/
+
+# Build output and dependencies
+node_modules/
+app/dist/
+
+# Editor and assistant settings with machine-specific paths
+.claude/
+.DS_Store
+
+# Signing keys must never be committed
+*.jks
+*.keystore
+keystore.properties

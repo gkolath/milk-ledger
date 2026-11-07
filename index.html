@@ -1,149 +1,691 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Milk Ledger</title>
-<meta name="description" content="Track the days your milk arrives, see the month's bill, and pay your milkman by UPI.">
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
 <style>
-/* Shared look for the Milk Ledger public pages: same palette and type as the app. */
-:root {
-  --bg: #f3f6fa;
-  --surface: #ffffff;
-  --ink: #17233d;
-  --muted: #5d6b85;
-  --line: #dbe2ec;
-  --accent: #2357d6;
-  --accent-soft: #e4ecfd;
-  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
-  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
+  /* Layout: one narrow column like a milkman's card — month, tabs, calendar grid; the bill stays pinned to the bottom. */
   :root {
+    --bg: #f3f6fa;
+    --surface: #ffffff;
+    --ink: #17233d;
+    --muted: #5d6b85;
+    --line: #dbe2ec;
+    --accent: #2357d6;
+    --accent-soft: #e4ecfd;
+    --yes: #13855a;
+    --yes-soft: #dcf3e8;
+    --no: #c23b3b;
+    --no-soft: #fbe5e3;
+    --bar: #17233d;
+    --bar-ink: #f3f6fa;
+    --bar-muted: #a9b6cd;
+    --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1522; --surface: #172033; --ink: #e8edf6; --muted: #98a5bd; --line: #2a3650;
+      --accent: #7aa2ff; --accent-soft: #1f2d4f; --yes: #4fd09a; --yes-soft: #163a2d;
+      --no: #ff8a80; --no-soft: #43201f; --bar: #e8edf6; --bar-ink: #0f1522; --bar-muted: #4b5873;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
     --bg: #0f1522; --surface: #172033; --ink: #e8edf6; --muted: #98a5bd; --line: #2a3650;
-    --accent: #7aa2ff; --accent-soft: #1f2d4f;
+    --accent: #7aa2ff; --accent-soft: #1f2d4f; --yes: #4fd09a; --yes-soft: #163a2d;
+    --no: #ff8a80; --no-soft: #43201f; --bar: #e8edf6; --bar-ink: #0f1522; --bar-muted: #4b5873;
     color-scheme: dark;
   }
-}
 
-* { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--ink);
-  font-family: var(--font-body);
-  font-size: 17px;
-  line-height: 1.6;
-}
-a { color: var(--accent); }
-a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.45;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
-.wrap {
-  max-width: 680px;
-  margin: 0 auto;
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 28px 56px;
-}
+  .app {
+    max-width: 520px;
+    margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 20px 230px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
 
-.top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 28px;
-}
-.brand {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 1.25rem;
-  letter-spacing: -0.02em;
-  color: var(--ink);
-  text-decoration: none;
-}
-.top nav { display: flex; gap: 16px; font-size: 0.92rem; }
+  header { display: flex; flex-direction: column; gap: 10px; }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 1.75rem;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+  .rates { margin: 0; color: var(--muted); font-size: 0.9rem; }
 
-h1, h2 { font-family: var(--font-display); letter-spacing: -0.02em; text-wrap: balance; }
-h1 { font-weight: 800; font-size: 2rem; line-height: 1.15; margin: 0 0 8px; }
-h2 { font-weight: 600; font-size: 1.25rem; margin: 32px 0 8px; }
-p, ul { margin: 0 0 14px; max-width: 65ch; }
-ul { padding-left: 1.2em; }
-li { margin-bottom: 6px; }
-.meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 24px; }
+  .month-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 6px;
+  }
+  .month-nav h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.2rem;
+    text-align: center;
+  }
+  .nav-btn {
+    width: 44px; height: 44px;
+    border: 0; border-radius: 10px;
+    background: transparent;
+    font-size: 1.4rem;
+  }
+  .nav-btn:hover { background: var(--accent-soft); }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; background: transparent; }
 
-.lede { font-size: 1.15rem; color: var(--muted); }
-.features {
-  list-style: none;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
-  gap: 12px;
-  margin: 24px 0;
-  max-width: none;
-}
-.features li {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 14px 16px;
-  margin: 0;
-}
-.features b { display: block; font-family: var(--font-display); font-size: 1.05rem; }
-.rate { font-variant-numeric: tabular-nums; }
+  .tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    background: var(--line);
+    padding: 4px;
+    border-radius: 14px;
+  }
+  .tab {
+    border: 0;
+    border-radius: 11px;
+    padding: 10px 8px;
+    background: transparent;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .tab strong { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; }
+  .tab span { font-size: 0.82rem; color: var(--muted); }
+  .tab[aria-selected="true"] { background: var(--surface); box-shadow: 0 1px 3px rgb(0 0 0 / 0.12); }
+  .tab[aria-selected="true"] strong { color: var(--accent); }
 
-.note {
-  background: var(--accent-soft);
-  border-radius: 12px;
-  padding: 12px 16px;
-}
+  .panel { display: flex; flex-direction: column; gap: 12px; }
+  .hint { margin: 0; font-size: 0.9rem; color: var(--muted); }
 
-footer {
-  margin-top: 40px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 0.88rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 18px;
-}
+  .weekdays, .grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .weekdays span {
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .day {
+    aspect-ratio: 1;
+    max-width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 1px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 0;
+    transition: transform 0.08s ease;
+  }
+  .day:active { transform: scale(0.94); }
+  .day .mark { font-size: 0.8rem; line-height: 1; height: 0.9rem; }
+  .day.yes { background: var(--yes-soft); border-color: var(--yes); color: var(--yes); }
+  .day.no { background: var(--no-soft); border-color: var(--no); color: var(--no); }
+  .day.no .num { text-decoration: line-through; }
+  .day.today { box-shadow: inset 0 0 0 2px var(--accent); }
+  .day:disabled { opacity: 0.35; cursor: default; }
+  .day:disabled:active { transform: none; }
+  .blank { aspect-ratio: 1; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.85rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--line); background: var(--surface); }
+  .sw.yes { background: var(--yes-soft); border-color: var(--yes); }
+  .sw.no { background: var(--no-soft); border-color: var(--no); }
+
+  .counts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin: 0;
+  }
+  .counts div {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .counts dt { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; }
+  .counts dd { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+  .counts .c-yes dd { color: var(--yes); }
+  .counts .c-no dd { color: var(--no); }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .btn {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+  .btn:disabled:hover { border-color: var(--line); color: inherit; }
+
+  .status { margin: 0; font-size: 0.8rem; color: var(--muted); min-height: 1.2em; }
+
+  .bill {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: var(--bar);
+    color: var(--bar-ink);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-top: 14px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -6px 24px rgb(0 0 0 / 0.18);
+  }
+  .bill-inner { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 6px; }
+  .bill-row {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.92rem;
+  }
+  .bill-row .lbl { color: var(--bar-muted); }
+  .bill-row .lbl b { color: var(--bar-ink); }
+  .bill-total {
+    border-top: 1px solid var(--bar-muted);
+    padding-top: 8px;
+    margin-top: 2px;
+  }
+  .bill-total .lbl { font-size: 0.85rem; }
+  .bill-total .amt {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 1.9rem;
+    letter-spacing: -0.02em;
+  }
+
+  .ai {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .ai-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ai h3 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; }
+  .ai-head label { font-size: 0.8rem; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+  .ai select {
+    font: inherit; font-size: 0.85rem;
+    border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); color: var(--ink);
+    padding: 4px 6px;
+  }
+  .ai-sub { margin: 0; font-size: 0.85rem; color: var(--muted); }
+  .ai .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+  .ai .btn.primary:hover { filter: brightness(1.08); color: var(--surface); }
+  .ai-out {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    background: var(--accent-soft);
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 0.95rem;
+    min-width: 0;
+  }
+  .ai-out-wrap { display: flex; flex-direction: column; gap: 8px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .day { transition: none; }
+    .day:active { transform: none; }
+  }
 </style>
-</head>
-<body>
-<div class="wrap">
-  <header class="top">
-    <a class="brand" href="./">Milk Ledger</a>
-    <nav><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></nav>
+
+<main class="app">
+  <header>
+    <h1>Milk Ledger</h1>
+    <p class="rates">1 litre at ₹70 a day · ½ litre at ₹35 a day</p>
+    <div class="month-nav">
+      <button class="nav-btn" id="prevMonth" aria-label="Previous month">‹</button>
+      <h2 id="monthLabel">October 2026</h2>
+      <button class="nav-btn" id="nextMonth" aria-label="Next month">›</button>
+    </div>
   </header>
 
-  <main>
-    <h1>Know exactly what you owe the milkman</h1>
-    <p class="lede">Milk Ledger is a simple Android app for households that get milk delivered every day. Tap the days it came, and the month's bill adds itself up.</p>
+  <div class="tabs" role="tablist" aria-label="Milk quantity">
+    <button class="tab" role="tab" id="tab-one" data-kind="one" aria-selected="true" aria-controls="panel">
+      <strong>1 litre</strong><span>₹70 per day</span>
+    </button>
+    <button class="tab" role="tab" id="tab-half" data-kind="half" aria-selected="false" aria-controls="panel">
+      <strong>½ litre</strong><span>₹35 per day</span>
+    </button>
+  </div>
 
-    <ul class="features">
-      <li><b>Mark each day</b>Tap once for received, twice for not received. Separate tabs for 1 litre and ½ litre.</li>
-      <li><b>Bill at a glance</b>Set your own rate for 1 litre and ½ litre, and the bill is totalled for the calendar month.</li>
-      <li><b>Pay by UPI</b>Opens Google Pay, PhonePe or any UPI app with the amount filled in. You confirm with your own PIN.</li>
-      <li><b>Synced and private</b>Sign in with Google. Your records follow you to a new phone, and no other household can see them.</li>
-    </ul>
+  <section class="panel" id="panel" role="tabpanel" aria-labelledby="tab-one">
+    <p class="hint">Tap a day once for <b>received</b>, again for <b>not received</b>, and a third time to clear it.</p>
+    <div class="weekdays" aria-hidden="true">
+      <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="legend">
+      <span><i class="sw yes"></i>Received</span>
+      <span><i class="sw no"></i>Not received</span>
+      <span><i class="sw"></i>Not marked</span>
+    </div>
+    <dl class="counts">
+      <div class="c-yes"><dt>Received</dt><dd id="cntYes">0</dd></div>
+      <div class="c-no"><dt>Not received</dt><dd id="cntNo">0</dd></div>
+      <div><dt>Not marked</dt><dd id="cntBlank">0</dd></div>
+    </dl>
+    <div class="actions">
+      <button class="btn" id="fillBtn">Mark unmarked days as received</button>
+      <button class="btn" id="clearBtn">Clear this month</button>
+    </div>
+    <div class="ai" id="aiCard" hidden>
+      <div class="ai-head">
+        <h3>Assistant</h3>
+        <label for="aiLang">Language
+          <select id="aiLang">
+            <option>English</option>
+            <option>Hindi</option>
+            <option>Malayalam</option>
+            <option>Tamil</option>
+            <option>Kannada</option>
+            <option>Telugu</option>
+            <option>Marathi</option>
+            <option>Bengali</option>
+          </select>
+        </label>
+      </div>
+      <p class="ai-sub">Uses both tabs for the month on screen.</p>
+      <div class="actions">
+        <button class="btn primary" id="msgBtn">Write payment message</button>
+        <button class="btn" id="insightBtn">Monthly insights</button>
+      </div>
+      <div class="ai-out-wrap" id="aiOutWrap" hidden>
+        <p class="ai-out" id="aiOut"></p>
+        <div class="actions"><button class="btn" id="copyBtn" hidden>Copy message</button></div>
+      </div>
+    </div>
+    <p class="status" id="status" aria-live="polite">Loading your entries…</p>
+  </section>
+</main>
 
-    <p class="note">Milk Ledger never handles your money or bank details. Payments go directly from your UPI app to the milkman.</p>
+<footer class="bill" aria-label="Monthly bill">
+  <div class="bill-inner">
+    <div class="bill-row"><span class="lbl"><b>1 litre</b> · <span id="billOneDays">0 days</span> × ₹70</span><span id="billOne">₹0</span></div>
+    <div class="bill-row"><span class="lbl"><b>½ litre</b> · <span id="billHalfDays">0 days</span> × ₹35</span><span id="billHalf">₹0</span></div>
+    <div class="bill-row bill-total"><span class="lbl">Total for <span id="billMonth">October</span> · <span id="billLitres">0 L</span></span><span class="amt" id="billTotal">₹0</span></div>
+  </div>
+</footer>
 
-    <h2>Contact</h2>
-    <p>Questions, problems or requests to delete your data: <a href="mailto:hello@truship.org">hello@truship.org</a></p>
-  </main>
+<script>
+(() => {
+  const RATE = { one: 70, half: 35 };
+  const LITRES = { one: 1, half: 0.5 };
+  const LS_KEY = "milk-ledger-v1";
+  const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
-  <footer>
-    <span>© 2026 Milk Ledger</span>
-    <a href="privacy.html">Privacy policy</a>
-    <a href="terms.html">Terms of service</a>
-  </footer>
-</div>
-</body>
-</html>
+  const $ = (id) => document.getElementById(id);
+  const today = new Date();
+  const view = { y: today.getFullYear(), m: today.getMonth() };
+  let kind = "one";
+  let confirmClear = false;
+
+  // month key -> { one: {day: "y"|"n"}, half: {...} }
+  const months = {};
+  let db = null;
+  let unsub = null;
+  let saveTimer = null;
+  let saving = false;
+  let dirtyKeys = new Set();
+
+  const monthKey = (y, m) => `${y}-${String(m + 1).padStart(2, "0")}`;
+  const curKey = () => monthKey(view.y, view.m);
+  const daysIn = (y, m) => new Date(y, m + 1, 0).getDate();
+  const rupees = (n) => "₹" + n.toLocaleString("en-IN");
+  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+
+  function monthData(key = curKey()) {
+    if (!months[key]) months[key] = { one: {}, half: {} };
+    return months[key];
+  }
+
+  // Days after today can't be marked yet.
+  function isFuture(y, m, d) {
+    const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    return new Date(y, m, d) > t;
+  }
+
+  function render() {
+    const { y, m } = view;
+    const md = monthData();
+    const marks = md[kind];
+    const n = daysIn(y, m);
+
+    $("monthLabel").textContent = `${MONTHS[m]} ${y}`;
+    $("billMonth").textContent = MONTHS[m];
+    $("nextMonth").disabled = y > today.getFullYear() || (y === today.getFullYear() && m >= today.getMonth());
+
+    document.querySelectorAll(".tab").forEach((t) => {
+      const on = t.dataset.kind === kind;
+      t.setAttribute("aria-selected", on);
+      if (on) $("panel").setAttribute("aria-labelledby", t.id);
+    });
+
+    const grid = $("grid");
+    grid.textContent = "";
+    const lead = new Date(y, m, 1).getDay();
+    for (let i = 0; i < lead; i++) {
+      const b = document.createElement("div");
+      b.className = "blank";
+      grid.appendChild(b);
+    }
+    let yes = 0, no = 0, blank = 0;
+    for (let d = 1; d <= n; d++) {
+      const state = marks[d];
+      const future = isFuture(y, m, d);
+      const btn = document.createElement("button");
+      btn.className = "day" + (state === "y" ? " yes" : state === "n" ? " no" : "");
+      if (y === today.getFullYear() && m === today.getMonth() && d === today.getDate()) btn.classList.add("today");
+      btn.dataset.day = d;
+      btn.disabled = future;
+      const label = state === "y" ? "received" : state === "n" ? "not received" : "not marked";
+      btn.setAttribute("aria-label", `${MONTHS[m]} ${d}, ${label}`);
+      btn.innerHTML = `<span class="num">${d}</span><span class="mark">${state === "y" ? "✓" : state === "n" ? "✕" : ""}</span>`;
+      grid.appendChild(btn);
+      if (state === "y") yes++;
+      else if (state === "n") no++;
+      else if (!future) blank++;
+    }
+    $("cntYes").textContent = yes;
+    $("cntNo").textContent = no;
+    $("cntBlank").textContent = blank;
+    $("fillBtn").disabled = blank === 0;
+    $("clearBtn").textContent = confirmClear ? "Tap again to clear both tabs" : "Clear this month";
+
+    // Bill covers both quantities for the month on screen.
+    const oneDays = Object.values(md.one).filter((v) => v === "y").length;
+    const halfDays = Object.values(md.half).filter((v) => v === "y").length;
+    const oneAmt = oneDays * RATE.one;
+    const halfAmt = halfDays * RATE.half;
+    $("billOneDays").textContent = plural(oneDays, "day");
+    $("billHalfDays").textContent = plural(halfDays, "day");
+    $("billOne").textContent = rupees(oneAmt);
+    $("billHalf").textContent = rupees(halfAmt);
+    $("billTotal").textContent = rupees(oneAmt + halfAmt);
+    const litres = oneDays * LITRES.one + halfDays * LITRES.half;
+    $("billLitres").textContent = `${litres.toLocaleString("en-IN")} L`;
+  }
+
+  function setStatus(text) { $("status").textContent = text; }
+
+  // ---- Saving ----
+  function changed() {
+    dirtyKeys.add(curKey());
+    render();
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(flush, 500);
+  }
+
+  async function flush() {
+    saveTimer = null;
+    if (saving) { saveTimer = setTimeout(flush, 300); return; }
+    const keys = [...dirtyKeys];
+    dirtyKeys.clear();
+    if (!db) {
+      try { localStorage.setItem(LS_KEY, JSON.stringify(months)); setStatus("Saved on this device."); }
+      catch { setStatus("Could not save. Your browser is blocking storage."); }
+      return;
+    }
+    saving = true;
+    setStatus("Saving…");
+    try {
+      for (const k of keys) {
+        const md = monthData(k);
+        await db.doc("months/" + k).set({ one: { ...md.one }, half: { ...md.half } });
+      }
+      setStatus("Saved. Opens the same on your phone and computer.");
+    } catch (e) {
+      keys.forEach((k) => dirtyKeys.add(k));
+      setStatus(e && e.code === "invalid_argument"
+        ? "You can view this ledger but not change it."
+        : "Could not save. Check your connection; changes will retry on your next tap.");
+    } finally {
+      saving = false;
+    }
+  }
+
+  function watchMonth() {
+    if (!db) return;
+    if (unsub) unsub();
+    const key = curKey();
+    unsub = db.doc("months/" + key).onSnapshot((snap) => {
+      // Don't overwrite taps that haven't been saved yet.
+      if (saveTimer || saving || dirtyKeys.has(key)) return;
+      const body = snap.exists ? snap.data() : null;
+      months[key] = { one: { ...(body?.one || {}) }, half: { ...(body?.half || {}) } };
+      if (key === curKey()) { render(); if (!saving) setStatus(snap.exists ? "Up to date." : "No entries for this month yet."); }
+    }, () => setStatus("Lost the connection to your saved entries. Reload the page."));
+  }
+
+  function loadLocal() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) Object.assign(months, JSON.parse(raw));
+      setStatus("Saving on this device only.");
+    } catch { setStatus("Storage is blocked here, so entries won't be kept."); }
+    render();
+  }
+
+  // ---- Events ----
+  $("grid").addEventListener("click", (e) => {
+    const btn = e.target.closest(".day");
+    if (!btn || btn.disabled) return;
+    const d = btn.dataset.day;
+    const marks = monthData()[kind];
+    marks[d] = marks[d] === "y" ? "n" : marks[d] === "n" ? undefined : "y";
+    if (!marks[d]) delete marks[d];
+    confirmClear = false;
+    changed();
+  });
+
+  document.querySelectorAll(".tab").forEach((t) =>
+    t.addEventListener("click", () => { kind = t.dataset.kind; confirmClear = false; render(); }));
+
+  function goMonth(delta) {
+    const d = new Date(view.y, view.m + delta, 1);
+    view.y = d.getFullYear(); view.m = d.getMonth();
+    confirmClear = false;
+    render();
+    watchMonth();
+  }
+  $("prevMonth").addEventListener("click", () => goMonth(-1));
+  $("nextMonth").addEventListener("click", () => goMonth(1));
+
+  $("fillBtn").addEventListener("click", () => {
+    const marks = monthData()[kind];
+    for (let d = 1; d <= daysIn(view.y, view.m); d++) {
+      if (!marks[d] && !isFuture(view.y, view.m, d)) marks[d] = "y";
+    }
+    confirmClear = false;
+    changed();
+  });
+
+  $("clearBtn").addEventListener("click", () => {
+    if (!confirmClear) { confirmClear = true; render(); return; }
+    confirmClear = false;
+    months[curKey()] = { one: {}, half: {} };
+    changed();
+  });
+
+  // ---- Assistant ----
+  const WEEKDAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  let ai = null;
+  let aiAbort = null;
+
+  // Numbers are worked out here; the assistant only puts them into words.
+  function summarize(md, y, m) {
+    const list = (marks, v) => Object.keys(marks).filter((d) => marks[d] === v).map(Number).sort((a, b) => a - b);
+    const one = list(md.one, "y");
+    const half = list(md.half, "y");
+    // A day is missed only when no milk came at all: a "not received" mark in one tab
+    // doesn't count if the other tab was received that day.
+    const missed = [...new Set([...list(md.one, "n"), ...list(md.half, "n")])]
+      .filter((d) => md.one[d] !== "y" && md.half[d] !== "y")
+      .sort((a, b) => a - b);
+    const missedByWeekday = {};
+    missed.forEach((d) => {
+      const w = WEEKDAYS[new Date(y, m, d).getDay()];
+      missedByWeekday[w] = (missedByWeekday[w] || 0) + 1;
+    });
+    const oneAmt = one.length * RATE.one;
+    const halfAmt = half.length * RATE.half;
+    return {
+      month: `${MONTHS[m]} ${y}`,
+      oneLitreDays: one.length,
+      halfLitreDays: half.length,
+      oneLitreAmount: oneAmt,
+      halfLitreAmount: halfAmt,
+      total: oneAmt + halfAmt,
+      litres: one.length * LITRES.one + half.length * LITRES.half,
+      notReceivedDates: missed,
+      missedByWeekday,
+    };
+  }
+
+  async function loadMonth(key) {
+    if (months[key]) return months[key];
+    if (db) {
+      try {
+        const snap = await db.doc("months/" + key).get();
+        const body = snap.exists ? snap.data() : null;
+        return { one: { ...(body?.one || {}) }, half: { ...(body?.half || {}) } };
+      } catch { /* fall through to empty */ }
+    }
+    return { one: {}, half: {} };
+  }
+
+  function showAi(text, copyable) {
+    $("aiOutWrap").hidden = false;
+    $("aiOut").textContent = text;
+    $("copyBtn").hidden = !copyable;
+    $("copyBtn").textContent = "Copy message";
+  }
+
+  async function askAi(prompt, copyable) {
+    if (!ai) return;
+    if (aiAbort) aiAbort.abort();
+    aiAbort = new AbortController();
+    $("msgBtn").disabled = $("insightBtn").disabled = true;
+    showAi("Thinking…", false);
+    try {
+      const res = await ai(prompt, {
+        modelTier: "quick",
+        signal: aiAbort.signal,
+        onText: ({ text }) => { $("aiOut").textContent = text; },
+      });
+      showAi(res.text.trim(), copyable);
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+      if (e && e.code === "not_granted") { $("aiCard").hidden = true; return; }
+      showAi(e && e.code === "rate_limited"
+        ? "Too many requests just now. Try again in a minute."
+        : "Couldn't reach the assistant. Check your connection and try again.", false);
+    } finally {
+      $("msgBtn").disabled = $("insightBtn").disabled = false;
+    }
+  }
+
+  $("msgBtn").addEventListener("click", () => {
+    const s = summarize(monthData(), view.y, view.m);
+    if (s.total === 0) { showAi("Mark at least one day as received first, then I can write the message.", false); return; }
+    const dates = s.notReceivedDates.length ? s.notReceivedDates.join(", ") : "none";
+    const prompt = `Write a short WhatsApp message from a household customer to their milk delivery person in India, settling the milk bill for ${s.month}.
+Language: ${$("aiLang").value}. Keep the ₹ amounts and numbers in digits.
+Use these numbers exactly. Do not calculate anything new.
+- 1 litre: ${s.oneLitreDays} days × ₹70 = ${rupees(s.oneLitreAmount)}
+- ½ litre: ${s.halfLitreDays} days × ₹35 = ${rupees(s.halfLitreAmount)}
+- Total to pay: ${rupees(s.total)}
+- Dates in ${MONTHS[view.m]} when milk was not delivered: ${dates}
+Leave out any line whose day count is 0. Keep it polite and friendly, under 70 words, plain text with no markdown, line breaks are fine. Don't add a sign-off name. Reply with only the message.`;
+    askAi(prompt, true);
+  });
+
+  $("insightBtn").addEventListener("click", async () => {
+    const { y, m } = view;
+    const cur = summarize(monthData(), y, m);
+    const p = new Date(y, m - 1, 1);
+    const prev = summarize(await loadMonth(monthKey(p.getFullYear(), p.getMonth())), p.getFullYear(), p.getMonth());
+    const n = daysIn(y, m);
+    const inProgress = y === today.getFullYear() && m === today.getMonth();
+    const md = monthData();
+    let unmarked = 0;
+    for (let d = 1; d <= n; d++) if (!md.one[d] && !md.half[d] && !isFuture(y, m, d)) unmarked++;
+    const prompt = `You help a household in India track daily milk delivery (1 litre at ₹70 a day, ½ litre at ₹35 a day).
+Give exactly 3 short, practical insights about this month compared with last month: spending change, missed deliveries, patterns such as a weekday that is often missed, and a useful tip if there is one.
+Language: ${$("aiLang").value}. Keep ₹ amounts in digits.
+Each insight on its own line starting with "• ", at most 22 words each, plain text, no headings or markdown. Use only the numbers given and don't invent data.${inProgress ? ` This month is still in progress: ${today.getDate()} of ${n} days so far, so compare fairly.` : ""}
+Days so far this month with nothing marked in either tab: ${unmarked}.
+This month: ${JSON.stringify(cur)}
+Last month: ${prev.total === 0 && prev.notReceivedDates.length === 0 ? "no entries recorded" : JSON.stringify(prev)}`;
+    askAi(prompt, false);
+  });
+
+  $("copyBtn").addEventListener("click", () => {
+    const text = $("aiOut").textContent;
+    const selectIt = () => {
+      const r = document.createRange();
+      r.selectNodeContents($("aiOut"));
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      $("copyBtn").textContent = "Text selected. Copy it from the menu";
+    };
+    try {
+      navigator.clipboard.writeText(text).then(() => { $("copyBtn").textContent = "Copied"; }, selectIt);
+    } catch { selectIt(); }
+  });
+
+  // ---- Start ----
+  render();
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("sample").then((ns) => {
+      if (ns) { ai = ns; $("aiCard").hidden = false; }
+    }, () => {});
+  }
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("db").then((ns) => {
+      if (!ns) { loadLocal(); return; }
+      db = ns;
+      watchMonth();
+    }, loadLocal);
+  } else {
+    loadLocal();
+  }
+})();
+</script>
