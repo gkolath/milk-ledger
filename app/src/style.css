@@ -101,6 +101,31 @@ a { color: var(--accent); }
 }
 .icon-btn:active { background: var(--accent-soft); }
 
+.insight {
+  position: relative;
+  background: var(--accent-soft);
+  border-radius: 16px;
+  padding: 14px 36px 14px 14px;
+}
+.insight-title { margin: 0 0 2px; font-weight: 700; }
+.insight-sub { margin: 0; font-size: 0.85rem; }
+.insight-dismiss {
+  position: absolute; top: 10px; right: 10px;
+  width: 24px; height: 24px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.1rem; line-height: 1;
+}
+.insight-dots { display: flex; gap: 5px; margin-top: 8px; }
+.insight-dots span {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--line);
+}
+.insight-dots span.on { background: var(--accent); }
+
 .setup {
   background: var(--accent-soft);
   border-radius: 16px;
@@ -283,6 +308,16 @@ a { color: var(--accent); }
   width: 100%;
 }
 .field .help { font-weight: 400; font-size: 0.82rem; color: var(--muted); }
+
+.quick-add { display: flex; gap: 8px; margin: 0; }
+.quick-add input {
+  flex: 1; min-width: 0;
+  font-size: 0.95rem;
+  padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--surface);
+}
+.quick-add .btn { padding: 10px 16px; }
 .rate-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .check { display: flex; gap: 10px; align-items: flex-start; font-size: 0.92rem; }
 .check input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--accent); }

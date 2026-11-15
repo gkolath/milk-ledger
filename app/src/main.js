@@ -27,6 +27,9 @@ const state = {
   confirmClear: false,
   confirmDelete: false,
   confirmRemove: null,
+  prevBillTotal: 0,
+  insightIndex: 0,
+  insightsDismissed: false,
 };
 
 // ---------- Screens ----------
@@ -73,6 +76,15 @@ async function loadMonth() {
       if (r.status === 'y' && r.rate) state.rates[r.kind][d] = r.rate;
     }
     state.payments = payments;
+
+    state.prevBillTotal = 0;
+    if (y === today.getFullYear() && m === today.getMonth()) {
+      const prev = new Date(y, m - 1, 1);
+      const prevRows = await state.store.deliveries(prev.getFullYear(), prev.getMonth());
+      if (token !== state.loadToken) return;
+      state.prevBillTotal = prevRows.reduce((sum, r) => (r.status === 'y' ? sum + (r.rate || 0) : sum), 0);
+    }
+
     render();
   } catch (e) {
     if (token === state.loadToken) toast(friendly(e));
@@ -122,6 +134,63 @@ function missedDates() {
     .sort((a, b) => a - b);
 }
 
+const received = (d) => state.marks.one[d] === 'y' || state.marks.half[d] === 'y';
+const missedDay = (d) => !received(d) && (state.marks.one[d] === 'n' || state.marks.half[d] === 'n');
+
+// Small, honest facts about the month in progress — nothing leaves the device to compute these.
+function computeInsights() {
+  const list = [];
+  if (state.y !== today.getFullYear() || state.m !== today.getMonth()) return list;
+  const day = today.getDate();
+
+  let receivedCount = 0;
+  for (let d = 1; d <= day; d++) if (received(d)) receivedCount++;
+  if (day >= 5 && receivedCount === day) {
+    list.push({ title: 'Perfect month so far', sub: `No missed days in ${plural(day, 'day')}.` });
+  }
+
+  let d = day;
+  while (d >= 1 && !received(d) && !missedDay(d)) d--;
+  let streak = 0;
+  while (d >= 1 && received(d)) { streak++; d--; }
+  if (streak >= 5) {
+    list.push({ title: `${streak}-day streak`, sub: 'Your current run of marked days.' });
+  }
+
+  if (state.prevBillTotal > 0) {
+    const curTotal = bill().total;
+    const diff = curTotal - state.prevBillTotal;
+    if (Math.abs(diff) >= 50) {
+      list.push({
+        title: `${rupees(Math.abs(diff))} ${diff > 0 ? 'more' : 'less'} than last month`,
+        sub: `This month's bill is ${rupees(curTotal)} so far.`,
+      });
+    }
+  }
+
+  return list;
+}
+
+function renderInsights() {
+  const card = $('insightCard');
+  if (state.insightsDismissed) { card.hidden = true; return; }
+  const list = computeInsights();
+  if (!list.length) { card.hidden = true; return; }
+  card.hidden = false;
+  const i = Math.min(state.insightIndex, list.length - 1);
+  $('insightTitle').textContent = list[i].title;
+  $('insightSub').textContent = list[i].sub;
+  const dots = $('insightDots');
+  dots.hidden = list.length < 2;
+  dots.textContent = '';
+  list.forEach((_, j) => {
+    const dot = document.createElement('span');
+    dot.className = j === i ? 'on' : '';
+    dot.dataset.i = j;
+    dots.appendChild(dot);
+  });
+}
+
 // ---------- Render ----------
 function render() {
   const { y, m, kind } = state;
@@ -130,6 +199,8 @@ function render() {
   const n = daysIn(y, m);
 
   $('setupCard').hidden = Boolean(h.upi_id);
+  renderInsights();
+  $('quickAddForm').hidden = y !== today.getFullYear() || m !== today.getMonth();
   $('monthLabel').textContent = `${MONTHS[m]} ${y}`;
   $('nextMonth').disabled = y > today.getFullYear() || (y === today.getFullYear() && m >= today.getMonth());
   $('rateOne').textContent = `${rupees(h.rate_one)} per day`;
@@ -258,6 +329,77 @@ $('grid').addEventListener('click', (e) => {
 document.querySelectorAll('.tab').forEach((t) =>
   t.addEventListener('click', () => { state.kind = t.dataset.kind; state.confirmClear = false; render(); }));
 
+// ---------- Quick add ----------
+// A small, honest parser — not a model. Understands relative days ("today",
+// "yesterday", "3 days ago") and day numbers ("the 5th"), joined by "and" or
+// commas, plus a status word (defaults to received).
+function parseQuickAdd(text) {
+  const raw = text.trim().toLowerCase();
+  if (!raw) return null;
+
+  let status = 'y';
+  if (/\b(not received|missed|absent|no milk)\b/.test(raw)) status = 'n';
+  else if (/\b(clear|remove|unmark)\b/.test(raw)) status = null;
+
+  const stripped = raw.replace(/\bnot received\b|\bno milk\b|\bmark\b|\bas\b|\breceived\b|\bmissed\b|\babsent\b|\bclear\b|\bremove\b|\bunmark\b/g, ' ');
+  const tokens = stripped.split(/,| and /).map((t) => t.trim()).filter(Boolean);
+
+  const days = new Set();
+  for (const token of tokens) {
+    let match;
+    if (token === 'today') days.add(today.getDate());
+    else if (token === 'yesterday') days.add(today.getDate() - 1);
+    else if ((match = token.match(/^(\d{1,2})\s*days?\s*ago$/))) days.add(today.getDate() - Number(match[1]));
+    else if ((match = token.match(/^(?:the\s*|day\s*)?(\d{1,2})(?:st|nd|rd|th)?$/))) days.add(Number(match[1]));
+  }
+
+  const { y, m } = state;
+  const valid = [...days].filter((d) => d >= 1 && d <= daysIn(y, m) && !isFuture(y, m, d));
+  if (!valid.length) return null;
+  return { status, days: valid.sort((a, b) => a - b) };
+}
+
+function applyQuickAdd(status, days) {
+  const { y, m, kind } = state;
+  const rows = [];
+  const cleared = [];
+  for (const d of days) {
+    const day = isoDay(y, m, d);
+    if (status === null) {
+      delete state.marks[kind][d];
+      delete state.rates[kind][d];
+      cleared.push(day);
+    } else {
+      state.marks[kind][d] = status;
+      if (status === 'y') state.rates[kind][d] = rateNow(kind); else delete state.rates[kind][d];
+      rows.push({ day, kind, status, rate: status === 'y' ? rateNow(kind) : null });
+    }
+  }
+  state.confirmClear = false;
+  render();
+  if (rows.length) write(() => state.store.setDeliveries(rows));
+  if (cleared.length) write(() => Promise.all(cleared.map((day) => state.store.clearDelivery(day, kind))));
+}
+
+$('quickAddForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const input = $('quickAddInput');
+  const err = $('quickAddError');
+  const parsed = parseQuickAdd(input.value);
+  if (!parsed) {
+    err.textContent = 'Couldn’t understand that. Try "yesterday and today" or "the 5th not received".';
+    err.hidden = false;
+    return;
+  }
+  err.hidden = true;
+  applyQuickAdd(parsed.status, parsed.days);
+  const n = parsed.days.length;
+  toast(parsed.status === null ? `Cleared ${plural(n, 'day')}.`
+    : parsed.status === 'y' ? `Marked ${plural(n, 'day')} as received.`
+    : `Marked ${plural(n, 'day')} as not received.`);
+  input.value = '';
+});
+
 function goMonth(delta) {
   const d = new Date(state.y, state.m + delta, 1);
   state.y = d.getFullYear();
@@ -266,11 +408,25 @@ function goMonth(delta) {
   state.rates = { one: {}, half: {} };
   state.payments = [];
   state.confirmClear = false;
+  state.insightsDismissed = false;
+  state.insightIndex = 0;
+  $('quickAddError').hidden = true;
   render();
   loadMonth();
 }
 $('prevMonth').addEventListener('click', () => goMonth(-1));
 $('nextMonth').addEventListener('click', () => goMonth(1));
+
+$('insightDismiss').addEventListener('click', () => {
+  state.insightsDismissed = true;
+  renderInsights();
+});
+$('insightDots').addEventListener('click', (e) => {
+  const dot = e.target.closest('[data-i]');
+  if (!dot) return;
+  state.insightIndex = Number(dot.dataset.i);
+  renderInsights();
+});
 
 $('fillBtn').addEventListener('click', () => {
   const { y, m, kind } = state;

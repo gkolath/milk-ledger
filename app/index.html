@@ -35,6 +35,13 @@
       </button>
     </header>
 
+    <div class="insight" id="insightCard" hidden>
+      <button class="insight-dismiss" id="insightDismiss" aria-label="Dismiss">&times;</button>
+      <p class="insight-title" id="insightTitle"></p>
+      <p class="insight-sub muted" id="insightSub"></p>
+      <div class="insight-dots" id="insightDots" hidden></div>
+    </div>
+
     <div class="setup" id="setupCard" hidden>
       <p><b>Add your milk seller</b>Set their UPI ID and your rates so you can pay from the app.</p>
       <button class="btn primary" id="setupBtn">Open settings</button>
@@ -57,6 +64,11 @@
 
     <section class="panel" id="panel" role="tabpanel" aria-labelledby="tab-one">
       <p class="hint">Tap a day once for <b>received</b>, again for <b>not received</b>, and a third time to clear it.</p>
+      <form class="quick-add" id="quickAddForm">
+        <input type="text" id="quickAddInput" placeholder="yesterday and today received" aria-label="Quick add by typing a day">
+        <button class="btn primary" type="submit">Add</button>
+      </form>
+      <p class="error" id="quickAddError" role="alert" hidden></p>
       <div class="weekdays" aria-hidden="true">
         <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
       </div>
