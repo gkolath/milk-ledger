@@ -13,9 +13,7 @@
     "@capacitor/app": "8.1.2",
     "@capacitor/app-launcher": "8.0.1",
     "@capacitor/core": "8.6.0",
-    "@capacitor/share": "8.0.3",
-    "@capgo/capacitor-social-login": "8.7.7",
-    "@supabase/supabase-js": "2.119.0"
+    "@capacitor/share": "8.0.3"
   },
   "devDependencies": {
     "@capacitor/cli": "8.6.0",

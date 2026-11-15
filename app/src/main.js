@@ -2,14 +2,12 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { AppLauncher } from '@capacitor/app-launcher';
 import { Share } from '@capacitor/share';
-import { SocialLogin } from '@capgo/capacitor-social-login';
-import { supabase, remoteStore, demoStore, isoDay } from './store.js';
-import { GOOGLE_WEB_CLIENT_ID, PRIVACY_URL, TERMS_URL, SUPPORT_EMAIL, UPI_PATTERN } from './config.js';
+import { localStore, isoDay } from './store.js';
+import { PRIVACY_URL, TERMS_URL, SUPPORT_EMAIL, UPI_PATTERN } from './config.js';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const LITRES = { one: 1, half: 0.5 };
 const native = Capacitor.isNativePlatform();
-const demo = !native && new URLSearchParams(location.search).has('demo');
 
 const $ = (id) => document.getElementById(id);
 const rupees = (n) => '₹' + n.toLocaleString('en-IN');
@@ -18,7 +16,6 @@ const today = new Date();
 
 const state = {
   store: null,
-  email: '',
   household: null,
   y: today.getFullYear(),
   m: today.getMonth(),
@@ -52,64 +49,11 @@ function friendly(err) {
   return msg || 'Something went wrong. Try again.';
 }
 
-// ---------- Sign in ----------
-let socialReady = null;
-function initSocial() {
-  socialReady ??= SocialLogin.initialize({ google: { webClientId: GOOGLE_WEB_CLIENT_ID } });
-  return socialReady;
-}
-
-function randomNonce() {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-}
-async function sha256Hex(text) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function signIn() {
-  const err = $('signinError');
-  err.hidden = true;
-  $('googleBtn').disabled = true;
-  try {
-    await initSocial();
-    // Google gets the hashed nonce; Supabase gets the raw one and checks they match.
-    const rawNonce = randomNonce();
-    const res = await SocialLogin.login({ provider: 'google', options: { nonce: await sha256Hex(rawNonce) } });
-    const idToken = res?.result?.idToken;
-    if (!idToken) throw new Error('Google did not return a sign-in token. Try again.');
-    const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: idToken, nonce: rawNonce });
-    if (error) throw error;
-  } catch (e) {
-    if (e?.code === 'USER_CANCELLED') return;
-    err.textContent = /no credentials/i.test(String(e?.message))
-      ? 'No Google account found on this phone. Add one in your phone\'s Settings → Passwords & accounts, then try again.'
-      : 'Sign-in failed. ' + friendly(e);
-    err.hidden = false;
-  } finally {
-    $('googleBtn').disabled = false;
-  }
-}
-
-async function signOut() {
-  await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
-  if (native) await initSocial().then(() => SocialLogin.logout({ provider: 'google' })).catch(() => {});
-}
-
 // ---------- Data ----------
-async function enterApp(email, store) {
-  state.email = email;
+async function enterApp(store) {
   state.store = store;
   show('loading');
-  try {
-    state.household = await store.household();
-  } catch (e) {
-    show('signin');
-    $('signinError').textContent = friendly(e);
-    $('signinError').hidden = false;
-    return;
-  }
+  state.household = await store.household();
   show('main');
   render();
   await loadMonth();
@@ -452,7 +396,6 @@ function openSettings() {
   $('rateOneInput').value = h.rate_one;
   $('rateHalfInput').value = h.rate_half;
   $('repriceMonthName').textContent = MONTHS[state.m];
-  $('accountEmail').textContent = state.email;
   $('supportEmail').textContent = SUPPORT_EMAIL;
   $('settingsError').hidden = true;
   state.confirmDelete = false;
@@ -462,7 +405,7 @@ function openSettings() {
 function closeSettings() { $('screen-settings').hidden = true; }
 function renderDelete() {
   $('deleteBtn').classList.toggle('armed', state.confirmDelete);
-  $('deleteBtn').textContent = state.confirmDelete ? 'Yes, delete everything' : 'Delete my account';
+  $('deleteBtn').textContent = state.confirmDelete ? 'Yes, clear everything' : 'Clear all data';
   $('deleteNote').hidden = !state.confirmDelete;
 }
 
@@ -505,23 +448,17 @@ $('settingsForm').addEventListener('submit', async (e) => {
   }
 });
 
-$('signOutBtn').addEventListener('click', async () => {
-  closeSettings();
-  await signOut();
-  if (demo) location.reload();
-});
-
 $('deleteBtn').addEventListener('click', async () => {
   if (!state.confirmDelete) { state.confirmDelete = true; renderDelete(); return; }
   $('deleteBtn').disabled = true;
   try {
     await state.store.deleteAccount();
+    state.household = await state.store.household();
     closeSettings();
-    await signOut();
-    toast('Your account and all its records were deleted.');
-    if (demo) location.reload();
+    await loadMonth();
+    toast('All your records were cleared.');
   } catch (ex) {
-    toast("Couldn't delete the account. " + friendly(ex));
+    toast("Couldn't clear your data. " + friendly(ex));
   } finally {
     $('deleteBtn').disabled = false;
   }
@@ -545,21 +482,5 @@ if (native) {
 }
 
 // ---------- Start ----------
-$('googleBtn').addEventListener('click', signIn);
-
-if (demo) {
-  enterApp('demo@example.com', demoStore());
-} else {
-  let currentId; // undefined until the first auth event, so a signed-out start still shows sign-in
-  supabase.auth.onAuthStateChange((_event, session) => {
-    const user = session?.user ?? null;
-    if (currentId !== undefined && (user?.id ?? null) === currentId) return;
-    currentId = user?.id ?? null;
-    // Supabase asks that no other Supabase calls run inside this callback.
-    setTimeout(() => {
-      if (user) enterApp(user.email || '', remoteStore(user.id));
-      else { state.store = null; show('signin'); }
-    }, 0);
-  });
-  if (native) initSocial().catch(() => {});
-}
+$('enterBtn').addEventListener('click', () => enterApp(localStore()));
+show('signin');

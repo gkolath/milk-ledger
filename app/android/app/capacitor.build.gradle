@@ -12,7 +12,6 @@ dependencies {
     implementation project(':capacitor-app')
     implementation project(':capacitor-app-launcher')
     implementation project(':capacitor-share')
-    implementation project(':capgo-capacitor-social-login')
 
 }
 
