@@ -26,6 +26,7 @@ export function localStore() {
     async household() { return { ...household }; },
     async saveHousehold(patch) { household = { ...household, ...patch }; persist(); return { ...household }; },
     async deliveries(y, m) { return [...rows.values()].filter((r) => inMonth(r.day, y, m)).map((r) => ({ ...r })); },
+    async allDeliveries() { return [...rows.values()].map((r) => ({ ...r })); },
     async setDeliveries(list) { list.forEach((r) => rows.set(key(r.day, r.kind), { ...r })); persist(); },
     async clearDelivery(day, kind) { rows.delete(key(day, kind)); persist(); },
     async clearMonth(y, m) { [...rows.keys()].forEach((k) => inMonth(k.split('|')[0], y, m) && rows.delete(k)); persist(); },

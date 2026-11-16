@@ -9,11 +9,15 @@
     "sync": "vite build && cap sync android"
   },
   "dependencies": {
+    "@capacitor-mlkit/genai-prompt": "8.2.2",
     "@capacitor/android": "8.6.0",
     "@capacitor/app": "8.1.2",
     "@capacitor/app-launcher": "8.0.1",
     "@capacitor/core": "8.6.0",
-    "@capacitor/share": "8.0.3"
+    "@capacitor/local-notifications": "8.3.1",
+    "@capacitor/share": "8.0.3",
+    "@fontsource/atkinson-hyperlegible": "5.3.0",
+    "@fontsource/bricolage-grotesque": "5.3.0"
   },
   "devDependencies": {
     "@capacitor/cli": "8.6.0",

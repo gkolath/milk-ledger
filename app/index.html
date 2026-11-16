@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Milk Ledger</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
 <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
@@ -39,6 +38,7 @@
       <button class="insight-dismiss" id="insightDismiss" aria-label="Dismiss">&times;</button>
       <p class="insight-title" id="insightTitle"></p>
       <p class="insight-sub muted" id="insightSub"></p>
+      <button class="btn insight-action" id="insightAction" hidden></button>
       <div class="insight-dots" id="insightDots" hidden></div>
     </div>
 
@@ -69,6 +69,11 @@
         <button class="btn primary" type="submit">Add</button>
       </form>
       <p class="error" id="quickAddError" role="alert" hidden></p>
+      <div class="actions" id="quickAddConfirm" hidden>
+        <span id="quickAddPreview"></span>
+        <button class="btn primary" type="button" id="quickAddYes">Yes, mark it</button>
+        <button class="btn ghost" type="button" id="quickAddNo">Cancel</button>
+      </div>
       <div class="weekdays" aria-hidden="true">
         <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
       </div>
@@ -83,6 +88,7 @@
         <div class="c-no"><dt>Not received</dt><dd id="cntNo">0</dd></div>
         <div><dt>Not marked</dt><dd id="cntBlank">0</dd></div>
       </dl>
+      <p class="muted small" id="patternLine" hidden></p>
       <div class="actions">
         <button class="btn" id="fillBtn">Mark unmarked days as received</button>
         <button class="btn" id="clearBtn">Clear this month</button>
@@ -107,6 +113,18 @@
         <button class="btn ghost" id="paidCancel">Cancel</button>
       </div>
       <ul class="history" id="history"></ul>
+    </section>
+
+    <section class="pay" id="askCard" aria-labelledby="askTitle" hidden>
+      <div class="pay-head">
+        <h3 id="askTitle">Ask about your milk</h3>
+        <span class="pill">On-phone AI</span>
+      </div>
+      <form class="quick-add" id="askForm">
+        <input type="text" id="askInput" maxlength="300" placeholder="How much did I spend since August?" aria-label="Your question">
+        <button class="btn primary" type="submit" id="askBtn">Ask</button>
+      </form>
+      <p class="ask-answer" id="askAnswer" aria-live="polite" hidden></p>
     </section>
   </main>
 
@@ -149,9 +167,26 @@
         <input type="checkbox" id="repriceMonth" checked>
         <span>Also update the days already marked in <b id="repriceMonthName"></b></span>
       </label>
+      <h2>Reminder</h2>
+      <label class="check" for="reminderOn">
+        <input type="checkbox" id="reminderOn">
+        <span>Remind me each day to mark whether milk came</span>
+      </label>
+      <label class="field" for="reminderTime" id="reminderTimeField">Remind me at
+        <input id="reminderTime" type="time" value="08:00">
+        <span class="help">No reminder on days you've already marked, or days milk usually doesn't come.</span>
+      </label>
+      <p class="muted small" id="reminderWebNote" hidden>Reminders work in the Android app.</p>
       <p class="error" id="settingsError" role="alert" hidden></p>
       <button class="btn primary wide" type="submit" id="saveSettings">Save</button>
     </form>
+
+    <h2>On-phone AI</h2>
+    <p class="muted" id="aiStatusText"></p>
+    <div class="actions">
+      <button class="btn primary" id="aiToggleBtn" hidden>Turn on on-phone AI</button>
+      <button class="btn" id="aiSetupBtn" hidden>Set up on-phone AI</button>
+    </div>
 
     <h2>Data</h2>
     <p class="muted">Your records are stored only on this device.</p>

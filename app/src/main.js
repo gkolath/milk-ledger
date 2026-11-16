@@ -1,8 +1,16 @@
+// Fonts ship inside the app (SIL Open Font License), so it never contacts Google Fonts.
+import '@fontsource/bricolage-grotesque/600.css';
+import '@fontsource/bricolage-grotesque/800.css';
+import '@fontsource/atkinson-hyperlegible/400.css';
+import '@fontsource/atkinson-hyperlegible/700.css';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { AppLauncher } from '@capacitor/app-launcher';
 import { Share } from '@capacitor/share';
 import { localStore, isoDay } from './store.js';
+import { learnPattern, expectedOn, forecastMonth, WEEKDAYS } from './smart.js';
+import { initReminders, allowReminders, cancelReminders, scheduleReminders } from './reminders.js';
+import { checkAi, aiStatus, setUpAi, turnOffAi, understandNote, answerQuestion, friendlierBill } from './ai.js';
 import { PRIVACY_URL, TERMS_URL, SUPPORT_EMAIL, UPI_PATTERN } from './config.js';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -28,6 +36,9 @@ const state = {
   confirmDelete: false,
   confirmRemove: null,
   prevBillTotal: 0,
+  prevMissed: 0, // days milk didn't come last month
+  prevDue: 0, // what's still unpaid for last month
+  pattern: null, // the household's usual week, learned from its own records (smart.js)
   insightIndex: 0,
   insightsDismissed: false,
 };
@@ -60,6 +71,9 @@ async function enterApp(store) {
   show('main');
   render();
   await loadMonth();
+  refreshReminders();
+  // On-phone AI is opt-in: ML Kit isn't touched unless the household turned it on in Settings.
+  if (native && state.household.ai_on && (await checkAi()) !== 'none') render();
 }
 
 async function loadMonth() {
@@ -78,12 +92,23 @@ async function loadMonth() {
     state.payments = payments;
 
     state.prevBillTotal = 0;
+    state.prevMissed = 0;
+    state.prevDue = 0;
     if (y === today.getFullYear() && m === today.getMonth()) {
       const prev = new Date(y, m - 1, 1);
-      const prevRows = await state.store.deliveries(prev.getFullYear(), prev.getMonth());
+      const [prevRows, prevPayments] = await Promise.all([
+        state.store.deliveries(prev.getFullYear(), prev.getMonth()),
+        state.store.payments(prev.getFullYear(), prev.getMonth()),
+      ]);
       if (token !== state.loadToken) return;
       state.prevBillTotal = prevRows.reduce((sum, r) => (r.status === 'y' ? sum + (r.rate || 0) : sum), 0);
+      state.prevDue = Math.max(0, state.prevBillTotal - prevPayments.reduce((s, p) => s + p.amount, 0));
+      state.pattern = learnPattern(await state.store.allDeliveries(), today);
+      state.prevMissed = countMissed(prevRows, state.pattern);
+    } else {
+      state.pattern = learnPattern(await state.store.allDeliveries(), today);
     }
+    if (token !== state.loadToken) return;
 
     render();
   } catch (e) {
@@ -98,7 +123,40 @@ function write(task) {
     toast("Couldn't save. " + friendly(e));
     return loadMonth();
   });
+  writeChain.then(refreshReminders);
   return writeChain;
+}
+
+// ---------- Reminders ----------
+// Reschedules the next two weeks of "Did milk come today?" notifications after any change,
+// skipping days already marked and days milk usually doesn't come.
+let reminderTimer = null;
+function refreshReminders() {
+  if (!native || !state.household) return;
+  clearTimeout(reminderTimer);
+  reminderTimer = setTimeout(async () => {
+    try {
+      const h = state.household;
+      if (!h.reminder_on) { await cancelReminders(); return; }
+      const marked = new Set((await state.store.allDeliveries()).map((r) => r.day));
+      await scheduleReminders(h.reminder_time || '08:00', (date) =>
+        marked.has(isoDay(date.getFullYear(), date.getMonth(), date.getDate())) || expectedOn(state.pattern, date)?.none);
+    } catch { /* reminders are a convenience; never block the app on them */ }
+  }, 800);
+}
+
+// Answer from a reminder's Received / Not received button.
+async function answerReminder(day, status) {
+  const date = new Date(day + 'T00:00:00');
+  const p = expectedOn(state.pattern, date);
+  const kinds = status === 'n'
+    ? [state.pattern?.primary ?? 'one']
+    : p && !p.none ? [p.one && 'one', p.half && 'half'].filter(Boolean) : ['one'];
+  const rate = (kind) => (kind === 'one' ? state.household.rate_one : state.household.rate_half);
+  const rows = kinds.map((kind) => ({ day, kind, status, rate: status === 'y' ? rate(kind) : null }));
+  await write(() => state.store.setDeliveries(rows));
+  if (date.getFullYear() === state.y && date.getMonth() === state.m) await loadMonth();
+  toast(status === 'y' ? 'Marked today as received.' : 'Marked today as not received.');
 }
 
 const rateNow = (kind) => (kind === 'one' ? state.household.rate_one : state.household.rate_half);
@@ -125,22 +183,130 @@ function bill() {
   return out;
 }
 
-// A date is "not delivered" only when no milk came at all that day.
+// A date is "not delivered" only when no milk came at all that day, and milk normally comes on
+// that weekday (the household's usual no-milk days, such as Sundays, aren't missed deliveries).
 function missedDates() {
   const days = new Set([...Object.keys(state.marks.one), ...Object.keys(state.marks.half)].map(Number));
   return [...days]
     .filter((d) => state.marks.one[d] !== 'y' && state.marks.half[d] !== 'y')
     .filter((d) => state.marks.one[d] === 'n' || state.marks.half[d] === 'n')
+    .filter((d) => !expectedOn(state.pattern, new Date(state.y, state.m, d))?.none)
     .sort((a, b) => a - b);
 }
 
 const received = (d) => state.marks.one[d] === 'y' || state.marks.half[d] === 'y';
 const missedDay = (d) => !received(d) && (state.marks.one[d] === 'n' || state.marks.half[d] === 'n');
 
+// Days in a set of delivery rows when no milk came at all (at least one "not received", nothing
+// received), leaving out the household's usual no-milk days such as Sundays.
+function countMissed(rows, pattern) {
+  const days = new Map();
+  for (const r of rows) days.set(r.day, (days.get(r.day) ?? '') + r.status);
+  return [...days.entries()].filter(([day, s]) =>
+    !s.includes('y') && s.includes('n') && !expectedOn(pattern, new Date(day + 'T00:00:00'))?.none).length;
+}
+
+const dateOf = (d) => new Date(state.y, state.m, d);
+const fmtDays = (list) => {
+  const shown = list.length > 6 ? [...list.slice(0, 5), '…'] : list;
+  return `${shown.join(', ')} ${MONTHS[state.m].slice(0, 3)}`;
+};
+
+// Past days of the viewed month with nothing marked in either tab (today excluded).
+function unmarkedPastDays() {
+  const out = [];
+  const isCurrent = state.y === today.getFullYear() && state.m === today.getMonth();
+  const last = isCurrent ? today.getDate() - 1 : daysIn(state.y, state.m);
+  for (let d = 1; d <= last; d++) if (!state.marks.one[d] && !state.marks.half[d]) out.push(d);
+  return out;
+}
+
+// Things worth a second look, newest first. Each may offer a one-tap fix.
+function computeAlerts() {
+  const list = [];
+  const isCurrent = state.y === today.getFullYear() && state.m === today.getMonth();
+  if (!isCurrent) return list;
+
+  if (state.prevDue > 0 && today.getDate() >= 3) {
+    const prev = new Date(state.y, state.m - 1, 1);
+    list.push({
+      tone: 'alert',
+      title: `${MONTHS[prev.getMonth()]} isn't fully paid`,
+      sub: `${rupees(state.prevDue)} is still due for last month.`,
+      action: { label: `Open ${MONTHS[prev.getMonth()]}`, run: () => goMonth(-1) },
+    });
+  }
+
+  const blanks = unmarkedPastDays();
+  if (blanks.length >= 2) {
+    list.push({
+      tone: 'alert',
+      title: `${plural(blanks.length, 'day')} not marked yet`,
+      sub: state.pattern ? `${fmtDays(blanks)}. Fill them with your usual pattern?` : `${fmtDays(blanks)}.`,
+      action: state.pattern ? { label: 'Fill the usual way', run: () => fillUsual(blanks) } : null,
+    });
+  }
+
+  // A day marked differently from the usual for its weekday may be a mis-tap.
+  if (state.pattern) {
+    for (let d = today.getDate(); d >= 1; d--) {
+      const p = expectedOn(state.pattern, dateOf(d));
+      const one = state.marks.one[d] === 'y';
+      const half = state.marks.half[d] === 'y';
+      if (!p || p.none || (!one && !half) || (one === p.one && half === p.half)) continue;
+      const got = one && half ? '1½ litres' : one ? '1 litre' : '½ litre';
+      const usual = p.one && p.half ? '1½ litres' : p.one ? '1 litre' : '½ litre';
+      list.push({
+        tone: 'alert',
+        title: `${d} ${MONTHS[state.m].slice(0, 3)} is marked ${got}`,
+        sub: `You usually get ${usual} on ${WEEKDAYS[dateOf(d).getDay()]}s. Tap the day to change it if that's a mistake.`,
+      });
+      break;
+    }
+  }
+
+  const missed = missedDates().length;
+  if (missed >= 3 && missed > state.prevMissed) {
+    const seller = state.household.seller_name || 'your milk seller';
+    list.push({
+      tone: 'alert',
+      title: `Milk didn't come ${missed} times this month`,
+      sub: state.prevMissed
+        ? `Last month it was ${state.prevMissed}. Worth mentioning to ${seller}?`
+        : `It came every day last month. Worth mentioning to ${seller}?`,
+    });
+  }
+  return list;
+}
+
+// The month's likely total, from the days marked so far and the usual pattern.
+function computeForecast() {
+  if (state.y !== today.getFullYear() || state.m !== today.getMonth()) return null;
+  const rates = { one: rateNow('one'), half: rateNow('half') };
+  const days = [];
+  for (let d = 1; d <= daysIn(state.y, state.m); d++) {
+    const marked = Boolean(state.marks.one[d] || state.marks.half[d]);
+    const cost = (state.marks.one[d] === 'y' ? rateFor('one', d) : 0) + (state.marks.half[d] === 'y' ? rateFor('half', d) : 0);
+    days.push({ date: dateOf(d), marked, cost });
+  }
+  const f = forecastMonth(days, today, state.pattern, rates);
+  if (!f) return null;
+  const vsLast = state.prevBillTotal > 0 ? f.total - state.prevBillTotal : 0;
+  return {
+    tone: Math.abs(vsLast) >= 0.1 * state.prevBillTotal && vsLast > 0 ? 'alert' : '',
+    title: `Heading for about ${rupees(f.total)} in ${MONTHS[state.m]}`,
+    sub: state.prevBillTotal > 0
+      ? `${rupees(f.soFar)} so far. Last month was ${rupees(state.prevBillTotal)}${vsLast >= 50 ? `, so this is about ${rupees(Math.round(vsLast / 10) * 10)} more` : ''}.`
+      : `${rupees(f.soFar)} so far this month.`,
+  };
+}
+
 // Small, honest facts about the month in progress — nothing leaves the device to compute these.
 function computeInsights() {
-  const list = [];
+  const list = [...computeAlerts()];
   if (state.y !== today.getFullYear() || state.m !== today.getMonth()) return list;
+  const forecast = computeForecast();
+  if (forecast) list.push(forecast);
   const day = today.getDate();
 
   let receivedCount = 0;
@@ -157,7 +323,7 @@ function computeInsights() {
     list.push({ title: `${streak}-day streak`, sub: 'Your current run of marked days.' });
   }
 
-  if (state.prevBillTotal > 0) {
+  if (state.prevBillTotal > 0 && !forecast) {
     const curTotal = bill().total;
     const diff = curTotal - state.prevBillTotal;
     if (Math.abs(diff) >= 50) {
@@ -171,6 +337,8 @@ function computeInsights() {
   return list;
 }
 
+let currentInsightAction = null;
+
 function renderInsights() {
   const card = $('insightCard');
   if (state.insightsDismissed) { card.hidden = true; return; }
@@ -178,8 +346,13 @@ function renderInsights() {
   if (!list.length) { card.hidden = true; return; }
   card.hidden = false;
   const i = Math.min(state.insightIndex, list.length - 1);
+  card.classList.toggle('alert', list[i].tone === 'alert');
   $('insightTitle').textContent = list[i].title;
   $('insightSub').textContent = list[i].sub;
+  const action = $('insightAction');
+  action.hidden = !list[i].action;
+  action.textContent = list[i].action?.label ?? '';
+  currentInsightAction = list[i].action?.run ?? null;
   const dots = $('insightDots');
   dots.hidden = list.length < 2;
   dots.textContent = '';
@@ -199,6 +372,9 @@ function render() {
   const n = daysIn(y, m);
 
   $('setupCard').hidden = Boolean(h.upi_id);
+  const aiReady = aiStatus() === 'ready';
+  $('askCard').hidden = !aiReady;
+  $('quickAddInput').placeholder = aiReady ? 'e.g. no milk on the 3rd and 5th' : 'yesterday and today received';
   renderInsights();
   $('quickAddForm').hidden = y !== today.getFullYear() || m !== today.getMonth();
   $('monthLabel').textContent = `${MONTHS[m]} ${y}`;
@@ -244,7 +420,13 @@ function render() {
   $('cntYes').textContent = yes;
   $('cntNo').textContent = no;
   $('cntBlank').textContent = blank;
-  $('fillBtn').disabled = blank === 0;
+  const isCurrent = y === today.getFullYear() && m === today.getMonth();
+  const todayOpen = isCurrent && !state.marks.one[today.getDate()] && !state.marks.half[today.getDate()];
+  const usualBlanks = state.pattern ? unmarkedPastDays().length + (todayOpen ? 1 : 0) : 0;
+  $('fillBtn').textContent = state.pattern ? 'Fill the usual way' : 'Mark unmarked days as received';
+  $('fillBtn').disabled = state.pattern ? usualBlanks === 0 : blank === 0;
+  $('patternLine').hidden = !state.pattern;
+  $('patternLine').textContent = state.pattern ? `Your usual: ${state.pattern.summary}.` : '';
   $('clearBtn').textContent = state.confirmClear ? 'Tap again to clear both tabs' : 'Clear this month';
 
   const b = bill();
@@ -359,8 +541,8 @@ function parseQuickAdd(text) {
   return { status, days: valid.sort((a, b) => a - b) };
 }
 
-function applyQuickAdd(status, days) {
-  const { y, m, kind } = state;
+function applyQuickAdd(status, days, kind = state.kind) {
+  const { y, m } = state;
   const rows = [];
   const cleared = [];
   for (const d of days) {
@@ -381,23 +563,115 @@ function applyQuickAdd(status, days) {
   if (cleared.length) write(() => Promise.all(cleared.map((day) => state.store.clearDelivery(day, kind))));
 }
 
-$('quickAddForm').addEventListener('submit', (e) => {
+function quickAddDone(status, days) {
+  const n = days.length;
+  toast(status === null ? `Cleared ${plural(n, 'day')}.`
+    : status === 'y' ? `Marked ${plural(n, 'day')} as received.`
+    : `Marked ${plural(n, 'day')} as not received.`);
+  $('quickAddInput').value = '';
+}
+
+// What the on-phone AI understood, waiting for the household to confirm it.
+let pendingNote = null;
+
+$('quickAddForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const input = $('quickAddInput');
   const err = $('quickAddError');
+  $('quickAddConfirm').hidden = true;
   const parsed = parseQuickAdd(input.value);
-  if (!parsed) {
-    err.textContent = 'Couldn’t understand that. Try "yesterday and today" or "the 5th not received".';
-    err.hidden = false;
+  if (parsed) {
+    err.hidden = true;
+    applyQuickAdd(parsed.status, parsed.days);
+    quickAddDone(parsed.status, parsed.days);
     return;
   }
-  err.hidden = true;
-  applyQuickAdd(parsed.status, parsed.days);
-  const n = parsed.days.length;
-  toast(parsed.status === null ? `Cleared ${plural(n, 'day')}.`
-    : parsed.status === 'y' ? `Marked ${plural(n, 'day')} as received.`
-    : `Marked ${plural(n, 'day')} as not received.`);
-  input.value = '';
+
+  // The simple parser didn't get it; on phones with Gemini Nano, let the AI read the note.
+  if (aiStatus() === 'ready' && input.value.trim()) {
+    err.hidden = true;
+    const submit = $('quickAddForm').querySelector('button');
+    submit.disabled = true;
+    try {
+      const note = await understandNote(input.value, {
+        todayText: today.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+        monthText: `${MONTHS[state.m]} ${state.y}`,
+        lastDay: Math.min(daysIn(state.y, state.m), today.getDate()),
+      });
+      if (note) {
+        // Use the usual quantity for "received" unless the note named one.
+        const kind = note.kind ?? (note.status === 'y' ? state.kind : state.pattern?.primary ?? state.kind);
+        pendingNote = { ...note, kind };
+        const what = note.status === null ? 'Clear' : 'Mark';
+        const how = note.status === null ? '' : note.status === 'y' ? ` as received (${kind === 'one' ? '1 litre' : '½ litre'})` : ' as not received';
+        $('quickAddPreview').textContent = `${what} ${fmtDays(note.days)}${how}?`;
+        $('quickAddConfirm').hidden = false;
+        return;
+      }
+    } catch { /* fall through to the plain hint */ } finally {
+      submit.disabled = false;
+    }
+  }
+  err.textContent = 'Couldn’t understand that. Try "yesterday and today" or "the 5th not received".';
+  err.hidden = false;
+});
+
+$('quickAddYes').addEventListener('click', () => {
+  if (!pendingNote) return;
+  const { status, days, kind } = pendingNote;
+  pendingNote = null;
+  $('quickAddConfirm').hidden = true;
+  applyQuickAdd(status, days, kind);
+  quickAddDone(status, days);
+});
+$('quickAddNo').addEventListener('click', () => {
+  pendingNote = null;
+  $('quickAddConfirm').hidden = true;
+});
+
+// ---------- Ask about your milk (on-phone AI) ----------
+// A plain-text summary of the last six months for the model to read; the numbers are worked
+// out here so the model only has to look them up.
+async function recordsSummary() {
+  const h = state.household;
+  const lines = [
+    `Today: ${today.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}.`,
+    `Milk seller: ${h.seller_name || 'not set'}. Rates: 1 litre ₹${h.rate_one} a day, half litre ₹${h.rate_half} a day.`,
+  ];
+  if (state.pattern) lines.push(`Usual pattern: ${state.pattern.summary}.`);
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const [rows, pays] = await Promise.all([state.store.deliveries(d.getFullYear(), d.getMonth()), state.store.payments(d.getFullYear(), d.getMonth())]);
+    if (!rows.length && !pays.length) continue;
+    const got = (kind) => rows.filter((r) => r.kind === kind && r.status === 'y');
+    const total = rows.reduce((s, r) => (r.status === 'y' ? s + (r.rate || 0) : s), 0);
+    const paid = pays.reduce((s, p) => s + p.amount, 0);
+    const byDay = new Map();
+    rows.forEach((r) => byDay.set(r.day, (byDay.get(r.day) ?? '') + r.status));
+    const missed = [...byDay].filter(([day, s]) => !s.includes('y') && s.includes('n') && !expectedOn(state.pattern, new Date(day + 'T00:00:00'))?.none)
+      .map(([day]) => Number(day.slice(8))).sort((a, b) => a - b);
+    lines.push(`${MONTHS[d.getMonth()]} ${d.getFullYear()}: 1 litre on ${plural(got('one').length, 'day')}, half litre on ${plural(got('half').length, 'day')}; ` +
+      `bill ₹${total.toLocaleString('en-IN')}; paid ₹${paid.toLocaleString('en-IN')}; still due ₹${Math.max(0, total - paid).toLocaleString('en-IN')}; ` +
+      `milk didn't come on ${missed.length ? missed.join(', ') : 'no days'}.`);
+  }
+  return lines.join('\n');
+}
+
+$('askForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const question = $('askInput').value.trim();
+  if (!question) return;
+  const answer = $('askAnswer');
+  answer.hidden = false;
+  answer.textContent = 'Thinking…';
+  $('askBtn').disabled = true;
+  try {
+    answer.textContent = await answerQuestion(question, await recordsSummary()) || "I couldn't find an answer in your records.";
+  } catch (err) {
+    answer.textContent = `Couldn't answer that. ${friendly(err)}`;
+  } finally {
+    $('askBtn').disabled = false;
+  }
 });
 
 function goMonth(delta) {
@@ -428,7 +702,43 @@ $('insightDots').addEventListener('click', (e) => {
   renderInsights();
 });
 
+$('insightAction').addEventListener('click', () => currentInsightAction?.());
+
+// Fill unmarked days the way the household's usual week goes: both quantities, and
+// "not received" on days milk usually doesn't come. Days the app isn't sure about stay blank.
+function fillUsual(days) {
+  const { y, m, pattern } = state;
+  const rows = [];
+  let filled = 0;
+  for (const d of days) {
+    if (state.marks.one[d] || state.marks.half[d] || isFuture(y, m, d)) continue;
+    const p = expectedOn(pattern, dateOf(d));
+    if (!p) continue;
+    const marks = p.none ? [[pattern.primary, 'n']] : [p.one && ['one', 'y'], p.half && ['half', 'y']].filter(Boolean);
+    for (const [kind, status] of marks) {
+      state.marks[kind][d] = status;
+      if (status === 'y') state.rates[kind][d] = rateNow(kind);
+      rows.push({ day: isoDay(y, m, d), kind, status, rate: status === 'y' ? rateNow(kind) : null });
+    }
+    filled++;
+  }
+  state.confirmClear = false;
+  render();
+  if (rows.length) write(() => state.store.setDeliveries(rows));
+  const skipped = days.length - filled;
+  toast(filled
+    ? `Filled ${plural(filled, 'day')} the usual way.${skipped ? ` ${plural(skipped, 'day')} left for you to mark.` : ''}`
+    : 'Not sure about those days yet. Mark them yourself.');
+}
+
 $('fillBtn').addEventListener('click', () => {
+  if (state.pattern) {
+    const days = unmarkedPastDays();
+    const t = today.getDate();
+    if (state.y === today.getFullYear() && state.m === today.getMonth() && !state.marks.one[t] && !state.marks.half[t]) days.push(t);
+    fillUsual(days);
+    return;
+  }
   const { y, m, kind } = state;
   const rows = [];
   for (let d = 1; d <= daysIn(y, m); d++) {
@@ -536,7 +846,14 @@ function billMessage() {
 }
 
 $('shareBtn').addEventListener('click', async () => {
-  const text = billMessage();
+  let text = billMessage();
+  if (aiStatus() === 'ready') {
+    // A warmer wording from the on-phone AI, used only if every number survived unchanged.
+    $('shareBtn').disabled = true;
+    try { text = (await friendlierBill(text)) ?? text; } catch { /* keep the plain message */ } finally {
+      $('shareBtn').disabled = false;
+    }
+  }
   try {
     if (native) await Share.share({ text, dialogTitle: 'Send the bill' });
     else if (navigator.share) await navigator.share({ text });
@@ -551,7 +868,13 @@ function openSettings() {
   $('upiId').value = h.upi_id || '';
   $('rateOneInput').value = h.rate_one;
   $('rateHalfInput').value = h.rate_half;
+  $('reminderOn').checked = Boolean(h.reminder_on);
+  $('reminderTime').value = h.reminder_time || '08:00';
+  $('reminderOn').disabled = !native;
+  $('reminderTimeField').hidden = !native;
+  $('reminderWebNote').hidden = native;
   $('repriceMonthName').textContent = MONTHS[state.m];
+  renderAiSettings();
   $('supportEmail').textContent = SUPPORT_EMAIL;
   $('settingsError').hidden = true;
   state.confirmDelete = false;
@@ -559,6 +882,55 @@ function openSettings() {
   $('screen-settings').hidden = false;
 }
 function closeSettings() { $('screen-settings').hidden = true; }
+
+const ML_KIT_NOTE = 'While it’s on, Google’s ML Kit sends Google basic usage statistics: phone model, Android and app version, and speed and error figures. Your records and what you type stay on this phone.';
+
+function renderAiSettings(progress) {
+  const s = aiStatus();
+  $('aiStatusText').textContent = !native
+    ? 'Available in the Android app on phones that have Google’s Gemini Nano.'
+    : {
+      off: 'Off. Turn it on to type notes in your own words, ask questions about your records and get a warmer bill message, if this phone has Google’s Gemini Nano. ' + ML_KIT_NOTE,
+      ready: 'On. Google’s Gemini Nano runs on this phone to understand typed notes, answer questions about your records and word your bill message. ' + ML_KIT_NOTE,
+      downloadable: 'This phone can run Google’s Gemini Nano. Set it up to start using it; Android downloads it, preferably over Wi-Fi. ' + ML_KIT_NOTE,
+      downloading: `Setting up Gemini Nano${progress ? ` (${progress} MB so far)` : ''}. You can keep using the app.`,
+      none: 'This phone doesn’t have Google’s on-phone AI, so it has been turned off. Everything else in the app works the same.',
+    }[s];
+  const toggle = $('aiToggleBtn');
+  toggle.hidden = !native || s === 'none';
+  toggle.textContent = s === 'off' ? 'Turn on on-phone AI' : 'Turn off on-phone AI';
+  toggle.className = s === 'off' ? 'btn primary' : 'btn';
+  $('aiSetupBtn').hidden = s !== 'downloadable';
+}
+
+$('aiToggleBtn').addEventListener('click', async () => {
+  const turningOn = aiStatus() === 'off';
+  $('aiToggleBtn').disabled = true;
+  try {
+    let s = 'off';
+    if (turningOn) s = await checkAi(); else turnOffAi();
+    // A phone without Gemini Nano stays off, so ML Kit isn't called again.
+    state.household = await state.store.saveHousehold({ ai_on: turningOn && s !== 'none' });
+    if (s === 'none') toast('This phone doesn’t have Google’s on-phone AI.');
+    else toast(turningOn ? (s === 'ready' ? 'On-phone AI is on.' : 'Set it up to start using it.') : 'On-phone AI is off.');
+  } finally {
+    $('aiToggleBtn').disabled = false;
+  }
+  renderAiSettings();
+  render();
+});
+
+$('aiSetupBtn').addEventListener('click', async () => {
+  try {
+    await setUpAi((mb) => renderAiSettings(mb));
+    toast(aiStatus() === 'ready' ? 'On-phone AI is ready.' : 'Gemini Nano is still setting up. Check back later.');
+  } catch {
+    toast("Couldn't set up on-phone AI right now. Try again later on Wi-Fi.");
+    await checkAi();
+  }
+  renderAiSettings();
+  render();
+});
 function renderDelete() {
   $('deleteBtn').classList.toggle('armed', state.confirmDelete);
   $('deleteBtn').textContent = state.confirmDelete ? 'Yes, clear everything' : 'Clear all data';
@@ -580,13 +952,23 @@ $('settingsForm').addEventListener('submit', async (e) => {
   let problem = '';
   if (upi && !UPI_PATTERN.test(upi)) problem = 'That UPI ID doesn\'t look right. It should look like name@bank, for example raju@okaxis.';
   else if (bad(rate_one) || bad(rate_half)) problem = 'Enter each rate as a whole number of rupees between 1 and 10,000.';
+  const reminder_time = $('reminderTime').value || '08:00';
+  let reminder_on = native && $('reminderOn').checked;
   if (problem) { err.textContent = problem; err.hidden = false; return; }
   err.hidden = true;
 
   const prev = state.household;
   $('saveSettings').disabled = true;
   try {
-    state.household = await state.store.saveHousehold({ seller_name, upi_id: upi || null, rate_one, rate_half });
+    if (reminder_on && !prev.reminder_on && !(await allowReminders())) {
+      reminder_on = false;
+      $('reminderOn').checked = false;
+      err.textContent = "Notifications are off for Milk Ledger. Turn them on in your phone's Settings → Apps → Milk Ledger → Notifications, then try again.";
+      err.hidden = false;
+      return;
+    }
+    state.household = await state.store.saveHousehold({ seller_name, upi_id: upi || null, rate_one, rate_half, reminder_on, reminder_time });
+    refreshReminders();
     if ($('repriceMonth').checked) {
       const { y, m } = state;
       if (rate_one !== prev.rate_one) await state.store.repriceMonth(y, m, 'one', rate_one);
@@ -610,6 +992,8 @@ $('deleteBtn').addEventListener('click', async () => {
   try {
     await state.store.deleteAccount();
     state.household = await state.store.household();
+    turnOffAi();
+    refreshReminders();
     closeSettings();
     await loadMonth();
     toast('All your records were cleared.');
@@ -640,3 +1024,10 @@ if (native) {
 // ---------- Start ----------
 $('enterBtn').addEventListener('click', () => enterApp(localStore()));
 show('signin');
+if (native) {
+  // A reminder button can be tapped before the ledger is open; open it first.
+  initReminders(async (day, status) => {
+    if (!state.store) await enterApp(localStore());
+    await answerReminder(day, status);
+  }).catch(() => {});
+}
