@@ -3,11 +3,11 @@
 An Android app for households that get milk delivered every day: tap the days it came, see the
 month's bill, and pay the milk seller by UPI.
 
-- `app/` — the Android app (Vite + Capacitor 8, Supabase for sign-in and storage)
+- `app/` — the Android app (Vite + Capacitor 8; records are stored only on the phone)
 - `docs/` — public home page, privacy policy and terms, served by GitHub Pages at
   https://gkolath.github.io/milk-ledger/
 - `index.html` — the original single-page tracker published on claude.ai
-- `BACKEND.md` — Supabase, Google sign-in and hosting details (public values only)
+- `BACKEND.md` — app details, hosting, and the retired Supabase/Google sign-in setup (public values only)
 
 ## Building the app
 

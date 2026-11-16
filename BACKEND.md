@@ -43,7 +43,7 @@ available approximation — no data actually leaves the device — not a fully a
 collected" declaration. A true "No" would require Google Play support to reset it, or exporting
 the declaration to CSV, editing the top-level field there, and re-importing (not attempted here).
 
-## Public pages (GitHub Pages, repo gkolath/milk-ledger, source in `site/`)
+## Public pages (GitHub Pages, repo gkolath/milk-ledger, source in `docs/`)
 - Home: https://gkolath.github.io/milk-ledger/
 - Privacy policy: https://gkolath.github.io/milk-ledger/privacy.html
 - Terms: https://gkolath.github.io/milk-ledger/terms.html
