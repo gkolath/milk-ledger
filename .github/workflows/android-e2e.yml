@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -37,7 +37,7 @@ jobs:
         working-directory: app
         run: |
           npm ci
-          npx cap sync android
+          npm run sync
           cd android && ./gradlew assembleDebug
 
       - name: Install e2e test dependencies
