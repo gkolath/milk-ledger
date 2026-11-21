@@ -29,13 +29,15 @@ async function disappears(elPromise, timeout = WAIT) {
 
 // The app's text inputs live inside the WebView, so UiAutomator2's setValue() only updates its
 // own accessibility-tree cache, not the real DOM value the app reads on submit. Typing through
-// adb (real IME key events) and dismissing the keyboard with BACK reaches the actual input.
+// adb (real IME key events) reaches the actual input. Blurring by tapping the dialog's own title
+// (rather than pressing BACK) avoids closing the whole dialog on emulators with no on-screen
+// keyboard to consume the back-press.
 async function typeInto(el, text) {
   await el.click();
   await driver.pause(200);
   execSync(`adb shell input text ${JSON.stringify(text.replace(/ /g, '%s'))}`);
   await driver.pause(200);
-  await driver.pressKeyCode(4); // BACK: dismisses the keyboard without closing the dialog
+  await (await driver.$('//android.app.Dialog//android.widget.TextView[@text="Settings"]')).click();
   await driver.pause(300);
 }
 
