@@ -704,6 +704,25 @@ $('insightDots').addEventListener('click', (e) => {
   renderInsights();
 });
 
+// Swipe left/right on the card itself to move between insights, same as tapping the dots.
+let swipeX = null;
+const insightCard = $('insightCard');
+insightCard.addEventListener('pointerdown', (e) => {
+  swipeX = e.clientX;
+  insightCard.setPointerCapture(e.pointerId);
+});
+insightCard.addEventListener('pointerup', (e) => {
+  if (swipeX === null) return;
+  const dx = e.clientX - swipeX;
+  swipeX = null;
+  if (Math.abs(dx) < 40) return; // a tap, not a swipe
+  const list = computeInsights();
+  if (list.length < 2) return;
+  state.insightIndex = (state.insightIndex + (dx < 0 ? 1 : -1) + list.length) % list.length;
+  renderInsights();
+});
+insightCard.addEventListener('pointercancel', () => { swipeX = null; });
+
 $('insightAction').addEventListener('click', () => currentInsightAction?.());
 
 // Fill unmarked days the way the household's usual week goes: both quantities, and

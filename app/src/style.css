@@ -106,6 +106,7 @@ a { color: var(--accent); }
   background: var(--accent-soft);
   border-radius: 16px;
   padding: 14px 36px 14px 14px;
+  touch-action: pan-y; /* let a horizontal drag swipe between insights instead of scrolling/navigating */
 }
 .insight-title { margin: 0 0 2px; font-weight: 700; }
 .insight-sub { margin: 0; font-size: 0.85rem; }
