@@ -3,6 +3,11 @@ name: Deploy to Play Store
 # Manual only: pick the track and press "Run workflow". The release bundle is built from
 # whatever versionCode/versionName is already committed in app/android/app/build.gradle —
 # bump that yourself first. The deploy job only starts if the UI test suite passes.
+#
+# The CI service account only has the Play Console "Release apps to testing tracks"
+# permission (not "Release to production") — granting production-publish rights to an
+# automated identity is a bigger step than this workflow set up on its own, so production
+# isn't offered here. Add it later in Play Console > Users and permissions if you want it.
 
 on:
   workflow_dispatch:
@@ -16,7 +21,6 @@ on:
           - internal
           - alpha
           - beta
-          - production
 
 jobs:
   test:
