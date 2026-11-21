@@ -1,7 +1,24 @@
-import { test, before, after } from 'node:test';
+import { test as rawTest, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execSync } from 'node:child_process';
+import fs from 'node:fs';
 import { remote } from 'webdriverio';
+
+// On failure, dump the live accessibility tree and a screenshot so a CI run that fails can be
+// diagnosed from its uploaded artifacts instead of guessing blind.
+let testIndex = 0;
+function test(name, fn) {
+  rawTest(name, async (t) => {
+    testIndex++;
+    try {
+      await fn(t);
+    } catch (err) {
+      try { fs.writeFileSync(`debug-${testIndex}.xml`, await driver.getPageSource()); } catch {}
+      try { fs.writeFileSync(`debug-${testIndex}.png`, Buffer.from(await driver.takeScreenshot(), 'base64')); } catch {}
+      throw err;
+    }
+  });
+}
 
 const APP_PACKAGE = 'org.truship.milkledger';
 const WAIT = 10000;
