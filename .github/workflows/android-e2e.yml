@@ -57,14 +57,14 @@ jobs:
           path: |
             ~/.android/avd/*
             ~/.android/avd/*.ini
-          key: avd-34-default-x86_64-v1
+          key: avd-34-google_apis-x86_64-v1
 
       - name: Create and boot the AVD once, to populate the cache
         if: steps.avd-cache.outputs.cache-hit != 'true'
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
-          target: default
+          target: google_apis
           arch: x86_64
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
@@ -75,7 +75,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
-          target: default
+          target: google_apis
           arch: x86_64
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none

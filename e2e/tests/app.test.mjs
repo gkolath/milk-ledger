@@ -4,7 +4,7 @@ import { execSync } from 'node:child_process';
 import { remote } from 'webdriverio';
 
 const APP_PACKAGE = 'org.truship.milkledger';
-const WAIT = 5000;
+const WAIT = 10000;
 
 let driver;
 let monthName; // e.g. "November", read from the app itself so the suite works on any date
