@@ -9,7 +9,7 @@ import { AppLauncher } from '@capacitor/app-launcher';
 import { Share } from '@capacitor/share';
 import { localStore, isoDay } from './store.js';
 import { learnPattern, expectedOn, forecastMonth, WEEKDAYS } from './smart.js';
-import { initReminders, allowReminders, cancelReminders, scheduleReminders } from './reminders.js';
+import { initReminders, allowReminders, cancelReminders, scheduleReminders, ensureTodayNotification } from './reminders.js';
 import { checkAi, aiStatus, setUpAi, turnOffAi, understandNote, answerQuestion, friendlierBill } from './ai.js';
 import { PRIVACY_URL, TERMS_URL, SUPPORT_EMAIL, UPI_PATTERN } from './config.js';
 
@@ -139,8 +139,10 @@ function refreshReminders() {
       const h = state.household;
       if (!h.reminder_on) { await cancelReminders(); return; }
       const marked = new Set((await state.store.allDeliveries()).map((r) => r.day));
-      await scheduleReminders(h.reminder_time || '08:00', (date) =>
-        marked.has(isoDay(date.getFullYear(), date.getMonth(), date.getDate())) || expectedOn(state.pattern, date)?.none);
+      const skip = (date) =>
+        marked.has(isoDay(date.getFullYear(), date.getMonth(), date.getDate())) || expectedOn(state.pattern, date)?.none;
+      await scheduleReminders(h.reminder_time || '08:00', skip);
+      await ensureTodayNotification(!skip(today));
     } catch { /* reminders are a convenience; never block the app on them */ }
   }, 800);
 }
