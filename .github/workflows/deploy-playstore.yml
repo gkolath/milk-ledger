@@ -1,0 +1,72 @@
+name: Deploy to Play Store
+
+# Manual only: pick the track and press "Run workflow". The release bundle is built from
+# whatever versionCode/versionName is already committed in app/android/app/build.gradle —
+# bump that yourself first. The deploy job only starts if the UI test suite passes.
+
+on:
+  workflow_dispatch:
+    inputs:
+      track:
+        description: 'Play Console track'
+        required: true
+        default: internal
+        type: choice
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+
+jobs:
+  test:
+    uses: ./.github/workflows/android-e2e.yml
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install the Android SDK platform this app compiles against
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" > /dev/null
+
+      - name: Write the release signing config from secrets
+        working-directory: app/android
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+          cat > keystore.properties <<PROPS
+          storeFile=release.keystore
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          PROPS
+
+      - name: Build the signed release bundle
+        run: |
+          cd app && npm ci && npm run sync
+          cd android && ./gradlew bundleRelease
+
+      - name: Upload to the Play Console
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: org.truship.milkledger
+          releaseFiles: app/android/app/build/outputs/bundle/release/app-release.aab
+          track: ${{ inputs.track }}
+          status: completed
+
+      - name: Remove the signing files from the runner
+        if: always()
+        working-directory: app/android
+        run: rm -f release.keystore keystore.properties
