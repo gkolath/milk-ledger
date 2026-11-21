@@ -1,0 +1,15 @@
+{
+  "name": "milk-ledger-e2e",
+  "version": "1.0.0",
+  "description": "Appium UI automation for the Milk Ledger Android app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "appium": "^4.0.0",
+    "appium-uiautomator2-driver": "^9.3.0",
+    "webdriverio": "^9.33.1"
+  }
+}

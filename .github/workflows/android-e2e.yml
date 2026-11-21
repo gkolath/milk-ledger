@@ -1,0 +1,93 @@
+name: Android UI tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'e2e/**'
+      - '.github/workflows/android-e2e.yml'
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'e2e/**'
+      - '.github/workflows/android-e2e.yml'
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install the Android SDK platform this app compiles against
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" > /dev/null
+
+      - name: Build the debug APK
+        working-directory: app
+        run: |
+          npm ci
+          npx cap sync android
+          cd android && ./gradlew assembleDebug
+
+      - name: Install e2e test dependencies
+        working-directory: e2e
+        run: npm ci
+
+      - name: AVD cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/avd/*.ini
+          key: avd-34-default-x86_64-v1
+
+      - name: Create and boot the AVD once, to populate the cache
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: default
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "AVD booted once to generate a cached snapshot."
+
+      - name: Run the Appium UI test suite
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: default
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            adb install -r app/android/app/build/outputs/apk/debug/app-debug.apk
+            cd e2e
+            nohup npx appium --base-path /wd/hub > appium.log 2>&1 &
+            for i in $(seq 1 30); do
+              curl -sf http://127.0.0.1:4723/wd/hub/status > /dev/null && break
+              sleep 1
+            done
+            npm test
+
+      - name: Upload Appium server log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: appium-log
+          path: e2e/appium.log
+          if-no-files-found: ignore
