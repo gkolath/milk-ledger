@@ -11,6 +11,7 @@ import { localStore, isoDay } from './store.js';
 import { learnPattern, expectedOn, forecastMonth, WEEKDAYS } from './smart.js';
 import { initReminders, allowReminders, cancelReminders, scheduleReminders, ensureTodayNotification } from './reminders.js';
 import { checkAi, aiStatus, setUpAi, turnOffAi, understandNote, answerQuestion, friendlierBill } from './ai.js';
+import { exportBackup, restoreBackup } from './backup.js';
 import { PRIVACY_URL, TERMS_URL, SUPPORT_EMAIL, UPI_PATTERN } from './config.js';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -34,6 +35,7 @@ const state = {
   loadToken: 0,
   confirmClear: false,
   confirmDelete: false,
+  confirmRestore: false,
   confirmRemove: null,
   prevBillTotal: 0,
   prevMissed: 0, // days milk didn't come last month
@@ -900,6 +902,8 @@ function openSettings() {
   $('settingsError').hidden = true;
   state.confirmDelete = false;
   renderDelete();
+  state.confirmRestore = false;
+  renderRestore();
   $('screen-settings').hidden = false;
 }
 function closeSettings() { $('screen-settings').hidden = true; }
@@ -958,6 +962,11 @@ function renderDelete() {
   $('deleteNote').hidden = !state.confirmDelete;
 }
 
+function renderRestore() {
+  $('restoreBtn').textContent = state.confirmRestore ? 'Choose backup file' : 'Restore from backup';
+  $('restoreNote').hidden = !state.confirmRestore;
+}
+
 $('openSettings').addEventListener('click', openSettings);
 $('setupBtn').addEventListener('click', openSettings);
 $('closeSettings').addEventListener('click', closeSettings);
@@ -1004,6 +1013,37 @@ $('settingsForm').addEventListener('submit', async (e) => {
     err.hidden = false;
   } finally {
     $('saveSettings').disabled = false;
+  }
+});
+
+$('backupBtn').addEventListener('click', async () => {
+  $('backupBtn').disabled = true;
+  try {
+    await exportBackup();
+  } catch (ex) {
+    toast("Couldn't back up your data. " + friendly(ex));
+  } finally {
+    $('backupBtn').disabled = false;
+  }
+});
+
+$('restoreBtn').addEventListener('click', () => {
+  if (!state.confirmRestore) { state.confirmRestore = true; renderRestore(); return; }
+  $('restoreFile').click();
+});
+
+$('restoreFile').addEventListener('change', async () => {
+  const file = $('restoreFile').files[0];
+  $('restoreFile').value = '';
+  if (!file) return;
+  try {
+    await restoreBackup(file);
+    toast('Restored. Reopening the ledger…');
+    setTimeout(() => location.reload(), 600);
+  } catch (ex) {
+    toast("Couldn't restore that backup. " + friendly(ex));
+    state.confirmRestore = false;
+    renderRestore();
   }
 });
 

@@ -189,7 +189,13 @@
     </div>
 
     <h2>Data</h2>
-    <p class="muted">Your records are stored only on this device.</p>
+    <p class="muted">Your records are stored only on this device. Back them up so a lost or wiped phone doesn't lose them too.</p>
+    <div class="actions">
+      <button class="btn" id="backupBtn">Back up your data</button>
+      <button class="btn" id="restoreBtn">Restore from backup</button>
+    </div>
+    <input type="file" id="restoreFile" accept="application/json" hidden>
+    <p class="muted small" id="restoreNote" hidden>This replaces everything currently on this device with the backup's contents. Choose a file to confirm.</p>
     <div class="actions">
       <button class="btn danger" id="deleteBtn">Clear all data</button>
     </div>
