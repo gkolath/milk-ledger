@@ -9,7 +9,7 @@ import { AppLauncher } from '@capacitor/app-launcher';
 import { Share } from '@capacitor/share';
 import { localStore, isoDay } from './store.js';
 import { learnPattern, expectedOn, forecastMonth, WEEKDAYS } from './smart.js';
-import { initReminders, allowReminders, cancelReminders, scheduleReminders, ensureTodayNotification } from './reminders.js';
+import { initReminders, allowReminders, cancelReminders, scheduleReminders, ensureTodayNotification, exactAlarmsAllowed, openExactAlarmSettings } from './reminders.js';
 import { checkAi, aiStatus, setUpAi, turnOffAi, understandNote, answerQuestion, friendlierBill } from './ai.js';
 import { exportBackup, restoreBackup } from './backup.js';
 import { PRIVACY_URL, TERMS_URL, SUPPORT_EMAIL, UPI_PATTERN } from './config.js';
@@ -896,6 +896,7 @@ function openSettings() {
   $('reminderOn').disabled = !native;
   $('reminderTimeField').hidden = !native;
   $('reminderWebNote').hidden = native;
+  renderExactAlarmStatus();
   $('repriceMonthName').textContent = MONTHS[state.m];
   renderAiSettings();
   $('supportEmail').textContent = SUPPORT_EMAIL;
@@ -907,6 +908,26 @@ function openSettings() {
   $('screen-settings').hidden = false;
 }
 function closeSettings() { $('screen-settings').hidden = true; }
+
+async function renderExactAlarmStatus() {
+  if (!native) { $('exactAlarmStatus').hidden = true; $('exactAlarmBtn').hidden = true; return; }
+  const allowed = await exactAlarmsAllowed();
+  $('exactAlarmStatus').hidden = false;
+  $('exactAlarmStatus').textContent = allowed
+    ? 'Exact alarms are on, so reminders fire at the exact minute.'
+    : 'Reminders may land a few minutes late until exact alarms are allowed for this app.';
+  $('exactAlarmBtn').hidden = allowed;
+}
+
+$('exactAlarmBtn').addEventListener('click', async () => {
+  $('exactAlarmBtn').disabled = true;
+  try {
+    await openExactAlarmSettings();
+    await renderExactAlarmStatus();
+  } finally {
+    $('exactAlarmBtn').disabled = false;
+  }
+});
 
 const ML_KIT_NOTE = 'While it’s on, Google’s ML Kit sends Google basic usage statistics: phone model, Android and app version, and speed and error figures. Your records and what you type stay on this phone.';
 

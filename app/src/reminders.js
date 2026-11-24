@@ -28,6 +28,18 @@ export async function allowReminders() {
   return p.display === 'granted';
 }
 
+/** Whether Android will let reminders fire at the exact minute chosen (always true before Android 12). */
+export async function exactAlarmsAllowed() {
+  const { exact_alarm } = await LocalNotifications.checkExactNotificationSetting();
+  return exact_alarm === 'granted';
+}
+
+/** Opens the system "Alarms & reminders" screen for this app so the household can turn it on. */
+export async function openExactAlarmSettings() {
+  const { exact_alarm } = await LocalNotifications.changeExactNotificationSetting();
+  return exact_alarm === 'granted';
+}
+
 export async function cancelReminders() {
   await LocalNotifications.cancelAll();
   await LocalNotifications.removeAllDeliveredNotifications();
@@ -53,8 +65,7 @@ export async function scheduleReminders(time, skip) {
       title: 'Did milk come today?',
       body: 'Tap Received or Not received, or open Milk Ledger to mark it.',
       schedule: { at },
-      // A few minutes late is fine for this, so don't ask for exact-alarm access.
-      isExactNotification: false,
+      isExactNotification: true,
       actionTypeId: ACTION_TYPE,
       extra: { day },
     });
