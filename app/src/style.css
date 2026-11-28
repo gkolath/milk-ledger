@@ -1,30 +1,32 @@
 /* Layout: one narrow column like a milkman's card — month, tabs, calendar, pay card; the bill stays pinned to the bottom. */
 :root {
-  --bg: #f3f6fa;
+  /* Milk arrives at sunrise: one signature gradient, indigo night into coral dawn,
+     spent only on the primary action and the bill total. Everything else stays plain. */
+  --bg: #f6f7fb;
   --surface: #ffffff;
-  --ink: #17233d;
-  --muted: #5d6b85;
-  --line: #dbe2ec;
-  --accent: #2357d6;
+  --ink: #14121f;
+  --muted: #686f80;
+  --line: #e4e7ef;
+  --accent: #5b3df0;
+  --accent-2: #ff6f59;
   --accent-ink: #ffffff;
-  --accent-soft: #e4ecfd;
-  --yes: #13855a;
-  --yes-soft: #dcf3e8;
-  --no: #c23b3b;
-  --no-soft: #fbe5e3;
-  --bar: #17233d;
-  --bar-ink: #f3f6fa;
-  --bar-muted: #a9b6cd;
+  --accent-soft: #ece9fe;
+  --yes: #0fae72;
+  --yes-soft: #dffaf0;
+  --no: #ef4444;
+  --no-soft: #fde7e6;
+  --bar-ink: #ffffff;
+  --bar-muted: #cfc9f3;
   --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", Roboto, system-ui, sans-serif;
   --font-body: "Atkinson Hyperlegible", "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f1522; --surface: #172033; --ink: #e8edf6; --muted: #98a5bd; --line: #2a3650;
-    --accent: #7aa2ff; --accent-ink: #0f1522; --accent-soft: #1f2d4f;
-    --yes: #4fd09a; --yes-soft: #163a2d; --no: #ff8a80; --no-soft: #43201f;
-    --bar: #e8edf6; --bar-ink: #0f1522; --bar-muted: #4b5873;
+    --bg: #0e0c16; --surface: #1a1726; --ink: #f1f0f7; --muted: #9b96b3; --line: #2d293e;
+    --accent: #8a74ff; --accent-2: #ff8a73; --accent-ink: #14121f; --accent-soft: #2b2545;
+    --yes: #35d696; --yes-soft: #163327; --no: #ff6b6b; --no-soft: #3a1f1f;
+    --bar-ink: #ffffff; --bar-muted: #cfc9f3;
     color-scheme: dark;
   }
 }
@@ -230,7 +232,7 @@ a { color: var(--accent); }
 }
 .btn:active { border-color: var(--accent); }
 .btn:disabled { opacity: 0.4; }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); border-color: transparent; color: var(--accent-ink); }
 .btn.danger { color: var(--no); }
 .btn.danger.armed { background: var(--no); border-color: var(--no); color: var(--surface); }
 .btn.ghost { border-color: transparent; background: transparent; color: var(--muted); }
@@ -268,13 +270,13 @@ a { color: var(--accent); }
 /* ---- Bill bar ---- */
 .bill {
   position: fixed; left: 0; right: 0; bottom: 0;
-  background: var(--bar); color: var(--bar-ink);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: var(--bar-ink);
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   padding-top: 14px;
   padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   border-radius: 18px 18px 0 0;
-  box-shadow: 0 -6px 24px rgb(0 0 0 / 0.18);
+  box-shadow: 0 -6px 24px rgb(91 61 240 / 0.3);
 }
 .bill-inner { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 6px; }
 .bill-row {
@@ -305,9 +307,13 @@ a { color: var(--accent); }
   display: flex; flex-direction: column; gap: 12px;
 }
 .sheet h2 {
-  font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em;
-  color: var(--muted);
-  margin: 16px 0 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--ink);
+  margin: 22px 0 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
 }
 .sheet p { margin: 0; }
 #settingsForm { display: flex; flex-direction: column; gap: 12px; }
